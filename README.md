@@ -61,7 +61,7 @@ docker run -p 7860:7860 code-review-env
 ## Run Inference
 ```bash
 export API_BASE_URL=https://api.groq.com/openai/v1
-export MODEL_NAME=llama3-8b-8192
+export MODEL_NAME=export MODEL_NAME=llama-3.3-70b-versatile
 export HF_TOKEN=your_key_here
 python inference.py
 ```
