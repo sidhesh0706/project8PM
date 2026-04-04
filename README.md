@@ -1,3 +1,11 @@
+---
+title: Code Review Env
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: docker
+pinned: false
+---
 # Code Review Environment
 
 An OpenEnv environment where an AI agent reviews Python code snippets
