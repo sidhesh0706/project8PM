@@ -33,18 +33,21 @@ EASY_ANSWERS = [
         bug_type="off_by_one",
         explanation="lst[len(lst)] is out of range. Should be lst[len(lst)-1] or lst[-1]",
         severity="high",
+        suggested_fix="return lst[-1]",
     ),
     BugReport(
         snippet_id="e2",
         bug_type="wrong_logic",
         explanation="Returns True when number is odd, not even. Condition is inverted.",
         severity="medium",
+        suggested_fix="if number % 2 == 0: return True",
     ),
     BugReport(
         snippet_id="e3",
         bug_type="wrong_variable",
         explanation="Uses + instead of *. The function is supposed to multiply.",
         severity="high",
+        suggested_fix="result = a * b",
     ),
 ]
 
@@ -82,18 +85,21 @@ MEDIUM_ANSWERS = [
         bug_type="off_by_one",
         explanation="range(1, len(numbers)) skips the first element at index 0.",
         severity="high",
+        suggested_fix="for i in range(0, len(numbers)):",
     ),
     BugReport(
         snippet_id="m2",
         bug_type="mutable_default_arg",
         explanation="Using a mutable default argument [] means the list persists across calls.",
         severity="high",
+        suggested_fix="def append_to_list(value, my_list=None):\n    if my_list is None:\n        my_list = []",
     ),
     BugReport(
         snippet_id="m3",
         bug_type="missing_edge_case",
         explanation="No check for b == 0. Will raise ZeroDivisionError at runtime.",
         severity="medium",
+        suggested_fix="if b == 0: return None\nreturn a / b",
     ),
 ]
 
@@ -156,30 +162,35 @@ HARD_ANSWERS = [
         bug_type="wrong_logic",
         explanation="factorial(n) calls factorial(n) not factorial(n-1). Infinite recursion.",
         severity="high",
+        suggested_fix="return n * factorial(n-1)",
     ),
     BugReport(
         snippet_id="h2",
         bug_type="incorrect_exception_handling",
-        explanation="Bare except swallows all errors and file is never closed. Use 'with open()' and specific exceptions.",
+        explanation="Bare except swallows all errors and file is never closed.",
         severity="high",
+        suggested_fix="with open(path, 'r') as f:\n    return f.read()",
     ),
     BugReport(
         snippet_id="h3",
         bug_type="no_bug",
         explanation="Formula is correct. No bug present.",
         severity="low",
+        suggested_fix="No fix needed.",
     ),
     BugReport(
         snippet_id="h4",
         bug_type="no_bug",
         explanation="Logic is correct, just inefficient. No functional bug.",
         severity="low",
+        suggested_fix="No fix needed.",
     ),
     BugReport(
         snippet_id="h5",
         bug_type="missing_edge_case",
-        explanation="Catches TypeError but not ZeroDivisionError. Division by zero is not handled.",
+        explanation="Catches TypeError but not ZeroDivisionError.",
         severity="high",
+        suggested_fix="except (TypeError, ZeroDivisionError):\n    return None",
     ),
 ]
 

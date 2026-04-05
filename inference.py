@@ -143,14 +143,18 @@ def run_task(task_name: str) -> dict:
     error = None
 
     log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
+    print(f"\n  Running {task_name.upper()} task — {obs.total_snippets} snippets", flush=True)
+    print(f"  {'─' * 40}", flush=True)
 
     try:
         step = 1
-        done = False
+        while True:
+            if not obs.snippets:
+                break
 
-        while not done:
-            action = get_llm_action(obs.snippets)
-            action_str = f"review({len(action.reports)}_snippets)"
+            current_snippet = obs.snippets[0]
+            action = get_llm_action([current_snippet])
+            action_str = f"review(snippet={current_snippet.id})"
 
             result = env.step(action)
             obs = result.observation
@@ -160,15 +164,17 @@ def run_task(task_name: str) -> dict:
             rewards.append(reward)
             steps_taken = step
 
-            log_step(
-                step=step,
-                action=action_str,
-                reward=reward,
-                done=done,
-                error=error,
-            )
+            # Human readable step summary
+            bar = "█" * round(reward * 10) + "░" * (10 - round(reward * 10))
+            reason = result.info.get("reason", "")
+            print(f"  Step {step} | {current_snippet.id} | [{bar}] {reward:.2f} | {reason}", flush=True)
+
+            # Machine readable log (required by judges)
+            log_step(step=step, action=action_str, reward=reward, done=done, error=error)
 
             step += 1
+            if done:
+                break
 
         score = sum(rewards) / len(rewards) if rewards else 0.0
         score = min(max(score, 0.0), 1.0)
@@ -176,21 +182,18 @@ def run_task(task_name: str) -> dict:
 
     except Exception as e:
         error = str(e)
-        print(f"[DEBUG] Task error: {e}", flush=True)
+        print(f"  [ERROR] {e}", flush=True)
 
     finally:
-        log_end(
-            success=success,
-            steps=steps_taken,
-            score=score,
-            rewards=rewards,
-        )
+        # Human readable summary
+        bar = "█" * round(score * 10) + "░" * (10 - round(score * 10))
+        status = "PASSED" if success else "FAILED"
+        print(f"  {'─' * 40}", flush=True)
+        print(f"  Score [{bar}] {score:.3f} — {status}\n", flush=True)
 
-    return {
-        "task": task_name,
-        "score": score,
-        "success": success,
-    }
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+    return {"task": task_name, "score": score, "success": success}
 
 
 # ─── ENTRY POINT ──────────────────────────────────────────────
@@ -198,9 +201,21 @@ def run_task(task_name: str) -> dict:
 if __name__ == "__main__":
     all_scores = {}
 
+    print("\n" + "═" * 44, flush=True)
+    print("  Code Review Environment — Inference Run", flush=True)
+    print("═" * 44, flush=True)
+
     for task_name in ["easy", "medium", "hard"]:
         result = run_task(task_name)
         all_scores[task_name] = result["score"]
+
+    print("═" * 44, flush=True)
+    print("  FINAL SCORES", flush=True)
+    print("═" * 44, flush=True)
+    for task, score in all_scores.items():
+        bar = "█" * round(score * 10) + "░" * (10 - round(score * 10))
+        print(f"  {task:<8} [{bar}] {score:.3f}", flush=True)
+    print("═" * 44 + "\n", flush=True)
 
     with open("scores.json", "w") as f:
         json.dump(all_scores, f, indent=2)

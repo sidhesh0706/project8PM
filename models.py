@@ -22,6 +22,7 @@ class BugReport(BaseModel):
     ]
     explanation: str
     severity: Literal["low", "medium", "high"]
+    suggested_fix: str
 
 
 class Observation(BaseModel):
