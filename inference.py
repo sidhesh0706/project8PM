@@ -167,7 +167,16 @@ def run_task(task_name: str) -> dict:
             # Human readable step summary
             bar = "█" * round(reward * 10) + "░" * (10 - round(reward * 10))
             reason = result.info.get("reason", "")
-            print(f"  Step {step} | {current_snippet.id} | [{bar}] {reward:.2f} | {reason}", flush=True)
+            snippet_id = current_snippet.id
+            # Find what the agent submitted for this snippet
+            submitted = next((r for r in action.reports if r.snippet_id == snippet_id), None)
+            if submitted:
+                print(f"  Step {step} | {snippet_id} | [{bar}] {reward:.2f} | {reason}", flush=True)
+                print(
+                    f"         ↳ agent: {submitted.bug_type} / {submitted.severity} / fix: {submitted.suggested_fix[:40]}",
+                    flush=True)
+            else:
+                print(f"  Step {step} | {snippet_id} | [{bar}] {reward:.2f} | {reason}", flush=True)
 
             # Machine readable log (required by judges)
             log_step(step=step, action=action_str, reward=reward, done=done, error=error)
