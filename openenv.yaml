@@ -1,0 +1,90 @@
+name: code-review-env
+version: "1.0.0"
+description: >
+  A real-world OpenEnv environment where an AI agent reviews Python
+  code snippets and identifies bugs. The agent must classify each bug
+  by type and severity, and suggest a fix. Partial credit is awarded.
+
+observation_space:
+  type: object
+  fields:
+    - name: snippets
+      type: list[CodeSnippet]
+      description: Python code snippets to review
+    - name: step_number
+      type: integer
+      description: Current step in the episode
+    - name: total_snippets
+      type: integer
+      description: Total number of snippets in this task
+    - name: task_name
+      type: string
+      description: Name of the current task
+
+action_space:
+  type: object
+  fields:
+    - name: reports
+      type: list[BugReport]
+      description: One bug report per snippet
+    - name: bug_type
+      type: enum
+      values:
+        - off_by_one
+        - wrong_variable
+        - missing_return
+        - mutable_default_arg
+        - wrong_logic
+        - missing_edge_case
+        - incorrect_exception_handling
+        - no_bug
+    - name: severity
+      type: enum
+      values: [low, medium, high]
+    - name: suggested_fix
+      type: string
+      description: Corrected line(s) of code
+
+tasks:
+  - name: easy
+    description: 3 snippets with one obvious bug each
+    difficulty: easy
+    num_snippets: 3
+    expected_score_range: [0.7, 1.0]
+  - name: medium
+    description: 3 snippets with subtle bugs including edge cases
+    difficulty: medium
+    num_snippets: 3
+    expected_score_range: [0.4, 0.8]
+  - name: hard
+    description: 5 snippets with subtle bugs, some have no bug
+    difficulty: hard
+    num_snippets: 5
+    expected_score_range: [0.2, 0.6]
+
+reward:
+  range: [0.0, 1.0]
+  partial_credit: true
+  scoring_rules:
+    - correct bug_type + correct severity + good fix = 1.0
+    - correct bug_type + correct severity + weak fix = 0.8
+    - correct bug_type + wrong severity + good fix = 0.7
+    - correct bug_type + wrong severity + weak fix = 0.5
+    - wrong bug_type = 0.2
+    - missed snippet = 0.0
+
+api:
+  endpoints:
+    - POST /reset
+    - POST /step
+    - GET /state
+    - GET /tasks
+    - GET /
+
+environment_variables:
+  - name: API_BASE_URL
+    description: The API endpoint for the LLM
+  - name: MODEL_NAME
+    description: The model identifier to use for inference
+  - name: HF_TOKEN
+    description: Your Hugging Face / API key
