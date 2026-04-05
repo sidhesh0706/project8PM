@@ -83,6 +83,11 @@ export HF_TOKEN=your_key_here
 python inference.py
 ```
 
+## Inference Output Format
+[START] task=easy env=code-review-env model=llama-3.3-70b-versatile
+[STEP] step=1 action=review(3_snippets) reward=0.73 done=true error=null
+[END] success=true steps=1 score=0.730 rewards=0.73
+
 ## API Endpoints
 
 | Method | Endpoint | Description |
@@ -101,12 +106,6 @@ python inference.py
 | MODEL_NAME | Model identifier |
 | HF_TOKEN | Your API key |
 
-## Inference Output Format
-\```
-[START] task=easy env=code-review-env model=llama-3.3-70b-versatile
-[STEP] step=1 action=review(3_snippets) reward=0.73 done=true error=null
-[END] success=true steps=1 score=0.730 rewards=0.73
-\```
-
 ## Live Demo
+
 [https://huggingface.co/spaces/sid0706/code-review-env](https://huggingface.co/spaces/sid0706/code-review-env)
