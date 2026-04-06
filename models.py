@@ -6,6 +6,9 @@ class CodeSnippet(BaseModel):
     id: str
     code: str
     language: str = "python"
+    context: str = ""
+    pr_description: str = ""
+    failed_test: Optional[str] = None
 
 
 class BugReport(BaseModel):
@@ -18,6 +21,7 @@ class BugReport(BaseModel):
         "wrong_logic",
         "missing_edge_case",
         "incorrect_exception_handling",
+        "hardcoded_secret",
         "no_bug"
     ]
     explanation: str

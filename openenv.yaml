@@ -47,20 +47,28 @@ action_space:
 
 tasks:
   - name: easy
-    description: 3 snippets with one obvious bug each
+    description: 3 Python snippets with one obvious bug each
     difficulty: easy
     num_snippets: 3
     expected_score_range: [0.7, 1.0]
+
   - name: medium
-    description: 3 snippets with subtle bugs including edge cases
+    description: 3 Python snippets with subtle bugs including edge cases
     difficulty: medium
     num_snippets: 3
     expected_score_range: [0.4, 0.8]
+
   - name: hard
-    description: 5 snippets with subtle bugs, some have no bug
+    description: 8 snippets (Python + JavaScript), subtle bugs, some have no bug
     difficulty: hard
-    num_snippets: 5
-    expected_score_range: [0.2, 0.6]
+    num_snippets: 8
+    expected_score_range: [0.2, 0.7]
+
+  - name: security
+    description: 4 snippets with security vulnerabilities — SQL injection, hardcoded secrets, path traversal
+    difficulty: hard
+    num_snippets: 4
+    expected_score_range: [0.5, 0.9]
 
 reward:
   range: [0.0, 1.0]

@@ -57,12 +57,19 @@ def build_prompt(snippets) -> str:
 
     snippets_text = ""
     for s in snippets:
-        snippets_text += f"\n--- Snippet ID: {s.id} ---\n{s.code}\n"
+        snippets_text += f"\n--- Snippet ID: {s.id} | Language: {s.language} ---"
+        if s.pr_description:
+            snippets_text += f"\nPR Description: {s.pr_description}"
+        if s.context:
+            snippets_text += f"\nIntent: {s.context}"
+        if s.failed_test:
+            snippets_text += f"\nFailed test: {s.failed_test}"
+        snippets_text += f"\nCode:\n{s.code}\n"
 
-    return f"""You are an expert Python code reviewer.
+    return f"""You are an expert code reviewer working on a pull request.
 
-Review each code snippet below and identify the bug in each one.
-Some snippets may have no bug — in that case use bug_type "no_bug".
+Review the code snippet below. Use the PR description and intent to understand
+what the code is supposed to do, then identify any bugs.
 
 Available bug types: {', '.join(bug_types)}
 Available severities: {', '.join(severities)}
@@ -74,18 +81,7 @@ Respond ONLY with a valid JSON array. Each element must have:
 - bug_type: one of the bug types listed above
 - explanation: a brief explanation of the bug
 - severity: one of the severities listed above
-- suggested_fix: the corrected line(s) of code that fix the bug
-
-Example format:
-[
-  {{
-    "snippet_id": "e1",
-    "bug_type": "off_by_one",
-    "explanation": "Index out of range, should be len(lst)-1",
-    "severity": "high",
-    "suggested_fix": "return lst[-1]"
-  }}
-]
+- suggested_fix: the corrected line(s) of code
 
 Return ONLY the JSON array, no other text.
 """
@@ -214,7 +210,7 @@ if __name__ == "__main__":
     print("  Code Review Environment — Inference Run", flush=True)
     print("═" * 44, flush=True)
 
-    for task_name in ["easy", "medium", "hard"]:
+    for task_name in ["easy", "medium", "hard", "security"]:
         result = run_task(task_name)
         all_scores[task_name] = result["score"]
 

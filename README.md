@@ -42,20 +42,35 @@ but wrong severity still scores 0.7. Providing a good fix on top scores 1.0.
 
 ## Tasks
 
-| Task | Snippets | Description |
-|------|----------|-------------|
-| easy | 3 | One obvious bug per snippet |
-| medium | 3 | Subtle bugs including edge cases |
-| hard | 5 | Subtle bugs — some snippets have no bug |
+| Task | Snippets | Languages | Description |
+|------|----------|-----------|-------------|
+| easy | 3 | Python | One obvious bug per snippet |
+| medium | 3 | Python | Subtle bugs including edge cases |
+| hard | 8 | Python + JavaScript | Subtle bugs, some snippets have no bug |
+| security | 4 | Python | SQL injection, hardcoded secrets, path traversal, weak hashing |
+
+## What makes this environment unique
+
+- **Multi-language** — hard task includes JavaScript snippets alongside Python
+- **PR context** — each snippet includes a pull request description and intent, mimicking real code review
+- **Fix suggestion scoring** — agent must not only identify the bug but suggest a correct fix
+- **Security vulnerability detection** — dedicated task for real-world security bugs
+- **No-bug detection** — some snippets have no bug, agent must avoid false positives
+- **Partial credit grading** — 6 score levels rewarding nuanced understanding
 
 ## Scoring
 
-- Correct bug type + correct severity + good fix = **1.0**
-- Correct bug type + correct severity + weak fix = **0.8**
-- Correct bug type + wrong severity + good fix = **0.7**
-- Correct bug type + wrong severity + weak fix = **0.5**
-- Wrong bug type = **0.2**
-- Missed snippet = **0.0**
+| Condition | Score |
+|-----------|-------|
+| Correct bug type + correct severity + good fix | **1.0** |
+| Correct bug type + correct severity + weak fix | **0.8** |
+| Correct bug type + wrong severity + good fix | **0.7** |
+| Correct bug type + wrong severity + weak fix | **0.5** |
+| Wrong bug type | **0.2** |
+| False positive on no-bug snippet | **0.0** |
+| Missed snippet | **0.0** |
+
+Partial credit is awarded at every level — the reward function provides signal across the full trajectory, not just at episode end.
 
 ## Setup & Run Locally
 ```bash

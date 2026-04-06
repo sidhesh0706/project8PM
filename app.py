@@ -25,7 +25,8 @@ def root():
     return {
         "name": "code-review-env",
         "version": "1.0.0",
-        "tasks": ["easy", "medium", "hard"],
+        "tasks": ["easy", "medium", "hard", "security"],
+        "languages": ["python", "javascript"],
         "status": "running",
     }
 
