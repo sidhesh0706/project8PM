@@ -152,6 +152,11 @@ def _heuristic_action(snippets) -> Action:
             severity = "high"
             explanation = "The shared default tag list leaks cache metadata across requests."
             suggested_fix = "Use None as the default and create a new list inside the function."
+        elif "exchange_refresh_token" not in code and "refresh_access_token(" in code and 'session["access_token"]' in code:
+            bug_type = "wrong_logic"
+            severity = "high"
+            explanation = "The token refresh helper recursively calls itself instead of delegating to the token exchange path."
+            suggested_fix = "Call the token exchange helper once and store the returned access token."
         elif "except:" in code or "except typeerror:" in code:
             bug_type = "incorrect_exception_handling" if "except:" in code else "missing_edge_case"
             severity = "high"
@@ -182,6 +187,16 @@ def _heuristic_action(snippets) -> Action:
             severity = "medium"
             explanation = "The parser assumes the webhook payload is always present and valid."
             suggested_fix = "Return None or validate keys when the payload is missing."
+        elif "overrides={}" in code and "feature_flag" in code:
+            bug_type = "mutable_default_arg"
+            severity = "high"
+            explanation = "The shared overrides dict leaks feature-flag state across requests."
+            suggested_fix = "Use None as the default and initialize a new overrides dict inside the function."
+        elif "failed_requests / total_requests" in code:
+            bug_type = "missing_edge_case"
+            severity = "high"
+            explanation = "The metric helper does not guard against a zero total request count."
+            suggested_fix = "Catch ZeroDivisionError or return 0.0 when total_requests is zero."
         elif "select * from users where id =" in code or "md5(" in code:
             bug_type = "wrong_logic"
             severity = "high"

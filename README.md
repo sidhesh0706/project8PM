@@ -47,7 +47,7 @@ but wrong severity still scores 0.7. Providing a good fix on top scores 1.0.
 |------|----------|-----------|-------------|
 | easy | 3 | Python | Production-style snippets with one obvious bug per snippet |
 | medium | 3 | Python | Production-style snippets with retries, cache state, and webhook edge cases |
-| hard | 8 | Python + JavaScript | Subtle bugs, some snippets have no bug |
+| hard | 8 | Python + JavaScript | Advanced review cases with auth flows, async bugs, and deliberate no-bug traps |
 | security | 4 | Python | SQL injection, hardcoded secrets, path traversal, weak hashing |
 
 ## What makes this environment unique
@@ -55,6 +55,7 @@ but wrong severity still scores 0.7. Providing a good fix on top scores 1.0.
 - **Multi-language** — supports both Python and JavaScript snippets
 - **PR context** — each snippet includes a pull request description and intent, mimicking real code review
 - **Real-world review flow** — tasks cover pagination, auth refresh, checkout totals, retry logic, cache invalidation, webhooks, and security bugs
+- **Hard-mode ambiguity** — advanced tasks include realistic no-bug snippets and subtle regressions that reward reviewer restraint
 - **Fix suggestion scoring** — agent must not only identify the bug but suggest a correct fix
 - **Security vulnerability detection** — dedicated task for real-world security bugs
 - **No-bug detection** — some snippets have no bug, agent must avoid false positives

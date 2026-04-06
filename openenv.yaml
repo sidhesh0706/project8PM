@@ -63,7 +63,7 @@ tasks:
     expected_score_range: [0.4, 0.8]
 
   - name: hard
-    description: 8 snippets across Python and JavaScript, with subtle bugs and some no-bug cases
+    description: 8 advanced snippets across Python and JavaScript, including auth flows, audit events, async bugs, and no-bug traps
     difficulty: hard
     num_snippets: 8
     expected_score_range: [0.2, 0.7]

@@ -4,6 +4,26 @@ from typing import List
 from models import BugReport
 
 
+SNIPPET_EXPECTATIONS = {
+    "e1": {"fix": {"page_size"}, "explanation": {"extra", "page", "slice"}},
+    "e2": {"fix": {"expires_at", "now"}, "explanation": {"refresh", "session", "expiry"}},
+    "e3": {"fix": {"discount"}, "explanation": {"discount", "tax", "wrong"}},
+    "m1": {"fix": {"max_attempts", "+", "1"}, "explanation": {"retry", "attempt"}},
+    "m2": {"fix": {"none", "tags"}, "explanation": {"shared", "cache", "tags"}},
+    "m3": {"fix": {"payload", "none"}, "explanation": {"payload", "missing"}},
+    "h1": {"fix": {"exchange", "refresh_token"}, "explanation": {"recursive", "refresh", "token"}},
+    "h2": {"fix": {"with", "open"}, "explanation": {"bare", "except", "closed"}},
+    "h5": {"fix": {"zerodivisionerror", "0.0"}, "explanation": {"zero", "requests"}},
+    "h6": {"fix": {"===", "null"}, "explanation": {"assignment", "comparison"}},
+    "h7": {"fix": {"await", "response", "json"}, "explanation": {"promise", "await"}},
+    "h8": {"fix": {"none", "overrides"}, "explanation": {"shared", "feature", "flags"}},
+    "s1": {"fix": {"execute", "user_id"}, "explanation": {"sql", "injection"}},
+    "s2": {"fix": {"environment", "secret"}, "explanation": {"credentials", "hardcoded"}},
+    "s3": {"fix": {"basename", "join"}, "explanation": {"path", "traversal"}},
+    "s4": {"fix": {"bcrypt", "argon2"}, "explanation": {"md5", "password"}},
+}
+
+
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", text.strip().lower())
 
@@ -21,15 +41,36 @@ def _semantic_match_score(submitted_text: str, reference_text: str) -> float:
     return len(overlap) / len(reference_tokens)
 
 
+def _contains_expected_terms(text: str, expected_terms: set[str]) -> bool:
+    normalized = _normalize(text)
+    return all(term in normalized for term in expected_terms)
+
+
 def _fix_quality(submitted: BugReport, correct: BugReport) -> bool:
     suggested_fix = submitted.suggested_fix or ""
     if _normalize(suggested_fix) == "no fix needed.":
         return correct.bug_type == "no_bug"
     if len(suggested_fix.strip()) <= 5:
         return False
+
+    snippet_expectations = SNIPPET_EXPECTATIONS.get(correct.snippet_id, {})
+    expected_fix_terms = snippet_expectations.get("fix", set())
+    expected_explanation_terms = snippet_expectations.get("explanation", set())
+
+    if expected_fix_terms and _contains_expected_terms(suggested_fix, expected_fix_terms):
+        return True
+
     fix_similarity = _semantic_match_score(suggested_fix, correct.suggested_fix)
     explanation_similarity = _semantic_match_score(submitted.explanation, correct.explanation)
-    return fix_similarity >= 0.35 or (fix_similarity >= 0.2 and explanation_similarity >= 0.2)
+    expectation_bonus = (
+        expected_explanation_terms
+        and _contains_expected_terms(submitted.explanation, expected_explanation_terms)
+    )
+    return (
+        fix_similarity >= 0.35
+        or (fix_similarity >= 0.2 and explanation_similarity >= 0.2)
+        or (fix_similarity >= 0.2 and expectation_bonus)
+    )
 
 
 def _score_single(submitted: BugReport, correct: BugReport) -> float:

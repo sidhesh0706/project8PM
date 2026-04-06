@@ -144,15 +144,17 @@ HARD_SNIPPETS = [
     CodeSnippet(
         id="h1",
         code="""
-def factorial(n):
-    if n == 0:
-        return 1
-    return n * factorial(n)
+def refresh_access_token(session, refresh_token):
+    if not refresh_token:
+        return None
+    token = refresh_access_token(session, refresh_token)
+    session["access_token"] = token
+    return token
 """,
         language="python",
-        context="Returns the factorial of n recursively",
-        pr_description="Recursive factorial implementation for the math library",
-        failed_test="assert factorial(5) == 120  # RecursionError: maximum depth exceeded",
+        context="Refreshes an expired OAuth access token and stores it in the session",
+        pr_description="Added token refresh helper for the API gateway auth middleware",
+        failed_test="assert refresh_access_token(session, 'r1') is not None  # RecursionError: maximum depth exceeded",
     ),
     CodeSnippet(
         id="h2",
@@ -172,44 +174,41 @@ def read_file(path):
     CodeSnippet(
         id="h3",
         code="""
-def celsius_to_fahrenheit(c):
-    return (c * 9/5) + 32
+def normalize_headers(headers):
+    return {key.lower(): value.strip() for key, value in headers.items()}
 """,
         language="python",
-        context="Converts a Celsius temperature to Fahrenheit",
-        pr_description="Temperature conversion utility for the weather module",
+        context="Normalizes inbound HTTP headers before they are forwarded to downstream services",
+        pr_description="Added header normalization helper for the API edge proxy",
         failed_test="# No failing test — function is correct",
     ),
     CodeSnippet(
         id="h4",
         code="""
-def remove_duplicates(lst):
-    seen = []
-    result = []
-    for item in lst:
-        if item not in seen:
-            seen.append(item)
-            result.append(item)
-    return result
+def build_audit_event(user_id, action, metadata=None):
+    payload = {"user_id": user_id, "action": action}
+    if metadata is not None:
+        payload["metadata"] = metadata
+    return payload
 """,
         language="python",
-        context="Removes duplicate elements from a list while preserving order",
-        pr_description="Deduplication utility that maintains original order",
+        context="Builds a structured audit log payload for compliance-sensitive actions",
+        pr_description="Added audit event formatter for the admin activity log",
         failed_test="# No failing test — function is correct",
     ),
     CodeSnippet(
         id="h5",
         code="""
-def safe_divide(a, b):
+def compute_error_rate(failed_requests, total_requests):
     try:
-        return a / b
+        return failed_requests / total_requests
     except TypeError:
-        return None
+        return 0.0
 """,
         language="python",
-        context="Divides a by b, returning None if division is not possible",
-        pr_description="Safe division that handles type errors gracefully",
-        failed_test="assert safe_divide(10, 0) is None  # Raises ZeroDivisionError instead",
+        context="Computes the request error rate for the SRE dashboard",
+        pr_description="Added metric helper for request error-rate alerts",
+        failed_test="assert compute_error_rate(4, 0) == 0.0  # Raises ZeroDivisionError instead",
     ),
     CodeSnippet(
         id="h6",
@@ -243,15 +242,15 @@ async function fetchData(url) {
     CodeSnippet(
         id="h8",
         code="""
-def get_config(key, config={}):
-    if key not in config:
-        config[key] = load_default(key)
-    return config[key]
+def get_feature_flag(flag_name, overrides={}):
+    if flag_name not in overrides:
+        overrides[flag_name] = load_feature_flag(flag_name)
+    return overrides[flag_name]
 """,
         language="python",
-        context="Returns config value for key, loading defaults if not present",
-        pr_description="Config accessor with lazy default loading",
-        failed_test="# Config persists across calls — second call gets first call's config",
+        context="Fetches a feature flag value, allowing request-scoped overrides when present",
+        pr_description="Added feature-flag accessor for the checkout rollout system",
+        failed_test="# Overrides persist across calls — a second request reuses the first request's flags",
     ),
 ]
 
@@ -259,9 +258,9 @@ HARD_ANSWERS = [
     BugReport(
         snippet_id="h1",
         bug_type="wrong_logic",
-        explanation="factorial(n) calls factorial(n) not factorial(n-1). Infinite recursion.",
+        explanation="The refresh helper recursively calls itself with the same arguments, causing infinite recursion instead of exchanging the refresh token once.",
         severity="high",
-        suggested_fix="return n * factorial(n-1)",
+        suggested_fix="token = exchange_refresh_token(session, refresh_token)",
     ),
     BugReport(
         snippet_id="h2",
@@ -273,23 +272,23 @@ HARD_ANSWERS = [
     BugReport(
         snippet_id="h3",
         bug_type="no_bug",
-        explanation="Formula is correct. No bug present.",
+        explanation="Header normalization is correct. Lowercasing keys and trimming values is the intended behavior.",
         severity="low",
         suggested_fix="No fix needed.",
     ),
     BugReport(
         snippet_id="h4",
         bug_type="no_bug",
-        explanation="Logic is correct, just inefficient. No functional bug.",
+        explanation="The audit event builder handles optional metadata correctly. No functional bug is present.",
         severity="low",
         suggested_fix="No fix needed.",
     ),
     BugReport(
         snippet_id="h5",
         bug_type="missing_edge_case",
-        explanation="Catches TypeError but not ZeroDivisionError.",
+        explanation="The metric helper catches TypeError but still crashes on total_requests == 0.",
         severity="high",
-        suggested_fix="except (TypeError, ZeroDivisionError):\n    return None",
+        suggested_fix="except (TypeError, ZeroDivisionError):\n    return 0.0",
     ),
     BugReport(
         snippet_id="h6",
@@ -308,9 +307,9 @@ HARD_ANSWERS = [
     BugReport(
         snippet_id="h8",
         bug_type="mutable_default_arg",
-        explanation="Mutable default dict {} persists across calls sharing config state.",
+        explanation="The default overrides dict is shared across calls, so feature flags leak between requests.",
         severity="high",
-        suggested_fix="def get_config(key, config=None):\n    if config is None:\n        config = {}",
+        suggested_fix="def get_feature_flag(flag_name, overrides=None):\n    if overrides is None:\n        overrides = {}",
     ),
 ]
 
