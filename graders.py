@@ -1,5 +1,35 @@
-from models import BugReport
+import re
 from typing import List
+
+from models import BugReport
+
+
+def _normalize(text: str) -> str:
+    return re.sub(r"\s+", " ", text.strip().lower())
+
+
+def _tokenize(text: str) -> set[str]:
+    return set(re.findall(r"[a-zA-Z_]{3,}", _normalize(text)))
+
+
+def _semantic_match_score(submitted_text: str, reference_text: str) -> float:
+    submitted_tokens = _tokenize(submitted_text)
+    reference_tokens = _tokenize(reference_text)
+    if not submitted_tokens or not reference_tokens:
+        return 0.0
+    overlap = submitted_tokens & reference_tokens
+    return len(overlap) / len(reference_tokens)
+
+
+def _fix_quality(submitted: BugReport, correct: BugReport) -> bool:
+    suggested_fix = submitted.suggested_fix or ""
+    if _normalize(suggested_fix) == "no fix needed.":
+        return correct.bug_type == "no_bug"
+    if len(suggested_fix.strip()) <= 5:
+        return False
+    fix_similarity = _semantic_match_score(suggested_fix, correct.suggested_fix)
+    explanation_similarity = _semantic_match_score(submitted.explanation, correct.explanation)
+    return fix_similarity >= 0.35 or (fix_similarity >= 0.2 and explanation_similarity >= 0.2)
 
 
 def _score_single(submitted: BugReport, correct: BugReport) -> float:
@@ -18,11 +48,7 @@ def _score_single(submitted: BugReport, correct: BugReport) -> float:
     if submitted.bug_type != correct.bug_type:
         return 0.2
 
-    fix_is_good = (
-        submitted.suggested_fix is not None
-        and len(submitted.suggested_fix.strip()) > 5
-        and submitted.suggested_fix.strip().lower() != "no fix needed."
-    )
+    fix_is_good = _fix_quality(submitted, correct)
 
     if submitted.severity == correct.severity:
         return 1.0 if fix_is_good else 0.8

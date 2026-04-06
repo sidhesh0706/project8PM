@@ -6,38 +6,41 @@ EASY_SNIPPETS = [
     CodeSnippet(
         id="e1",
         code="""
-def get_last_element(lst):
-    return lst[len(lst)]
+def paginate_results(rows, page, page_size):
+    start = page * page_size
+    end = start + page_size + 1
+    return rows[start:end]
 """,
         language="python",
-        context="Returns the last element of a list",
-        pr_description="Added utility function to get last element from any list",
-        failed_test="assert get_last_element([1,2,3]) == 3  # IndexError",
+        context="Returns one page of results from a backend search endpoint",
+        pr_description="Added pagination helper for the admin search API",
+        failed_test="assert len(paginate_results(list(range(20)), 1, 10)) == 10  # Returns 11 items",
     ),
     CodeSnippet(
         id="e2",
         code="""
-def is_even(number):
-    if number % 2 == 1:
+def should_refresh_session(expires_at, now):
+    if expires_at > now:
         return True
     return False
 """,
         language="python",
-        context="Returns True if the number is even, False otherwise",
-        pr_description="Simple utility to check if a number is even",
-        failed_test="assert is_even(4) == True  # Returns False instead",
+        context="Determines whether an auth session should be refreshed",
+        pr_description="Added session refresh helper for the auth middleware",
+        failed_test="assert should_refresh_session(expires_at=100, now=50) is False  # Refreshes active sessions",
     ),
     CodeSnippet(
         id="e3",
         code="""
-def multiply(a, b):
-    result = a + b
-    return result
+def calculate_order_total(subtotal, tax, discount):
+    total = subtotal + tax
+    total -= tax
+    return total
 """,
         language="python",
-        context="Multiplies two numbers and returns the result",
-        pr_description="Basic arithmetic multiply function for the math utils module",
-        failed_test="assert multiply(3, 4) == 12  # Returns 7 instead",
+        context="Calculates the final order total shown during checkout",
+        pr_description="Added helper for the checkout summary component",
+        failed_test="assert calculate_order_total(100, 10, 15) == 95  # Returns 100",
     ),
 ]
 
@@ -45,23 +48,23 @@ EASY_ANSWERS = [
     BugReport(
         snippet_id="e1",
         bug_type="off_by_one",
-        explanation="lst[len(lst)] is out of range. Should be lst[len(lst)-1] or lst[-1]",
+        explanation="The page slice ends one item too far because the end index adds an extra +1.",
         severity="high",
-        suggested_fix="return lst[-1]",
+        suggested_fix="end = start + page_size",
     ),
     BugReport(
         snippet_id="e2",
         bug_type="wrong_logic",
-        explanation="Returns True when number is odd, not even. Condition is inverted.",
+        explanation="The refresh check is inverted. Active sessions should not be refreshed before expiry.",
         severity="medium",
-        suggested_fix="if number % 2 == 0: return True",
+        suggested_fix="if expires_at <= now:\n    return True",
     ),
     BugReport(
         snippet_id="e3",
         bug_type="wrong_variable",
-        explanation="Uses + instead of *. The function is supposed to multiply.",
+        explanation="The function subtracts tax instead of discount, so the wrong variable is applied.",
         severity="high",
-        suggested_fix="result = a * b",
+        suggested_fix="total -= discount",
     ),
 ]
 
@@ -71,39 +74,43 @@ MEDIUM_SNIPPETS = [
     CodeSnippet(
         id="m1",
         code="""
-def get_average(numbers):
-    total = 0
-    for i in range(1, len(numbers)):
-        total += numbers[i]
-    return total / len(numbers)
+def fetch_with_retries(client, request, max_attempts=3):
+    for attempt in range(1, max_attempts):
+        response = client.send(request)
+        if response.ok:
+            return response
+    return None
 """,
         language="python",
-        context="Calculates the average of a list of numbers",
-        pr_description="Added get_average helper for the stats module",
-        failed_test="assert get_average([1,2,3,4]) == 2.5  # Returns 2.25 instead",
+        context="Sends an outbound API request with retry support for transient failures",
+        pr_description="Added retry helper for the billing gateway client",
+        failed_test="assert fetch_with_retries(client, request, max_attempts=3) calls send 3 times  # Only 2 attempts happen",
     ),
     CodeSnippet(
         id="m2",
         code="""
-def append_to_list(value, my_list=[]):
-    my_list.append(value)
-    return my_list
+def add_cache_tag(key, tag, tags=[]):
+    tags.append(tag)
+    cache_backend.write(key, {"tags": tags})
+    return tags
 """,
         language="python",
-        context="Appends a value to a list and returns it. Creates new list if none provided.",
-        pr_description="Utility function to append items to a list with optional default",
-        failed_test="assert append_to_list(1) != append_to_list(2)  # Both share same list",
+        context="Stores cache metadata tags for invalidation in the content API",
+        pr_description="Added helper for tagging cached CMS responses",
+        failed_test="assert add_cache_tag('post:1', 'news') != add_cache_tag('post:2', 'sports')  # Tags leak across requests",
     ),
     CodeSnippet(
         id="m3",
         code="""
-def divide(a, b):
-    return a / b
+def parse_webhook_event(payload):
+    event_type = payload["type"]
+    event_id = payload["id"]
+    return {"type": event_type, "id": event_id}
 """,
         language="python",
-        context="Divides a by b and returns the result safely",
-        pr_description="Safe division utility that handles edge cases",
-        failed_test="assert divide(10, 0) is None  # Raises ZeroDivisionError instead",
+        context="Extracts the event metadata from a payment webhook payload",
+        pr_description="Added webhook payload parser for the payments service",
+        failed_test="assert parse_webhook_event(None) is None  # Crashes when the provider sends an empty payload",
     ),
 ]
 
@@ -111,23 +118,23 @@ MEDIUM_ANSWERS = [
     BugReport(
         snippet_id="m1",
         bug_type="off_by_one",
-        explanation="range(1, len(numbers)) skips the first element at index 0.",
+        explanation="The retry loop stops one attempt too early because the upper bound excludes max_attempts.",
         severity="high",
-        suggested_fix="for i in range(0, len(numbers)):",
+        suggested_fix="for attempt in range(1, max_attempts + 1):",
     ),
     BugReport(
         snippet_id="m2",
         bug_type="mutable_default_arg",
-        explanation="Using a mutable default argument [] means the list persists across calls.",
+        explanation="The default tags list is shared across calls, so cache tags leak between requests.",
         severity="high",
-        suggested_fix="def append_to_list(value, my_list=None):\n    if my_list is None:\n        my_list = []",
+        suggested_fix="def add_cache_tag(key, tag, tags=None):\n    if tags is None:\n        tags = []",
     ),
     BugReport(
         snippet_id="m3",
         bug_type="missing_edge_case",
-        explanation="No check for b == 0. Will raise ZeroDivisionError at runtime.",
+        explanation="The parser assumes payload is always present and well-formed, so None crashes immediately.",
         severity="medium",
-        suggested_fix="if b == 0: return None\nreturn a / b",
+        suggested_fix="if not payload:\n    return None\nevent_type = payload[\"type\"]",
     ),
 ]
 
@@ -404,12 +411,12 @@ TASKS = {
     "easy": {
         "snippets": EASY_SNIPPETS,
         "answers": EASY_ANSWERS,
-        "description": "3 Python snippets with one obvious bug each",
+        "description": "3 production-style review snippets with one obvious bug each",
     },
     "medium": {
         "snippets": MEDIUM_SNIPPETS,
         "answers": MEDIUM_ANSWERS,
-        "description": "3 Python snippets with subtle bugs including edge cases",
+        "description": "3 production-style snippets with subtle bugs including retries, cache state, and webhook parsing",
     },
     "hard": {
         "snippets": HARD_SNIPPETS,

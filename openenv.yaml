@@ -1,16 +1,16 @@
 name: code-review-env
 version: "1.0.0"
 description: >
-  A real-world OpenEnv environment where an AI agent reviews Python
-  code snippets and identifies bugs. The agent must classify each bug
-  by type and severity, and suggest a fix. Partial credit is awarded.
+  A real-world OpenEnv environment where an AI agent reviews code
+  snippets, identifies bugs, classifies severity, and suggests fixes.
+  Partial credit is awarded for partially correct reviews.
 
 observation_space:
   type: object
   fields:
     - name: snippets
       type: list[CodeSnippet]
-      description: Python code snippets to review
+      description: Python and JavaScript code snippets to review
     - name: step_number
       type: integer
       description: Current step in the episode
@@ -20,6 +20,9 @@ observation_space:
     - name: task_name
       type: string
       description: Name of the current task
+    - name: session_id
+      type: string|null
+      description: Session identifier returned by /reset and reused for /step and /state
 
 action_space:
   type: object
@@ -37,6 +40,7 @@ action_space:
         - wrong_logic
         - missing_edge_case
         - incorrect_exception_handling
+        - hardcoded_secret
         - no_bug
     - name: severity
       type: enum
@@ -47,19 +51,19 @@ action_space:
 
 tasks:
   - name: easy
-    description: 3 Python snippets with one obvious bug each
+    description: 3 production-style review snippets with one obvious bug each
     difficulty: easy
     num_snippets: 3
     expected_score_range: [0.7, 1.0]
 
   - name: medium
-    description: 3 Python snippets with subtle bugs including edge cases
+    description: 3 production-style snippets with subtle bugs including retries, cache state, and webhook parsing
     difficulty: medium
     num_snippets: 3
     expected_score_range: [0.4, 0.8]
 
   - name: hard
-    description: 8 snippets (Python + JavaScript), subtle bugs, some have no bug
+    description: 8 snippets across Python and JavaScript, with subtle bugs and some no-bug cases
     difficulty: hard
     num_snippets: 8
     expected_score_range: [0.2, 0.7]
@@ -96,3 +100,8 @@ environment_variables:
     description: The model identifier to use for inference
   - name: HF_TOKEN
     description: Your Hugging Face / API key
+runtime:
+  framework: fastapi
+  port: 7860
+app:
+  entrypoint: app:app

@@ -1,21 +1,30 @@
+from uuid import uuid4
+
 from fastapi import FastAPI, HTTPException
-from models import Action, Observation, StepResult
+
 from env import CodeReviewEnv
+from models import Action, Observation, State, StepResult
+from tasks import TASKS
 
 app = FastAPI(
     title="Code Review Environment",
-    description="An OpenEnv environment where an agent reviews Python code for bugs.",
+    description="An OpenEnv environment where an agent reviews Python and JavaScript code for bugs.",
     version="1.0.0",
 )
 
-# One env instance per task — stored in memory
+# One env instance per session — stored in memory
 envs: dict[str, CodeReviewEnv] = {}
+TASK_NAMES = list(TASKS.keys())
 
 
-def get_env(task_name: str) -> CodeReviewEnv:
-    if task_name not in envs:
-        envs[task_name] = CodeReviewEnv(task_name=task_name)
-    return envs[task_name]
+def get_env(session_id: str) -> CodeReviewEnv:
+    env = envs.get(session_id)
+    if env is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unknown session_id. Call /reset first to start a new episode.",
+        )
+    return env
 
 
 # ─── HEALTH CHECK ─────────────────────────────────────────────
@@ -25,7 +34,7 @@ def root():
     return {
         "name": "code-review-env",
         "version": "1.0.0",
-        "tasks": ["easy", "medium", "hard", "security"],
+        "tasks": TASK_NAMES,
         "languages": ["python", "javascript"],
         "status": "running",
     }
@@ -36,25 +45,22 @@ def root():
 @app.post("/reset", response_model=Observation)
 def reset(task_name: str = "easy"):
     """Start a fresh episode for the given task."""
-    if task_name not in ["easy", "medium", "hard"]:
+    if task_name not in TASKS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown task '{task_name}'. Choose from: easy, medium, hard"
+            detail=f"Unknown task '{task_name}'. Choose from: {', '.join(TASK_NAMES)}"
         )
-    env = get_env(task_name)
+    session_id = uuid4().hex
+    env = CodeReviewEnv(task_name=task_name, session_id=session_id)
+    envs[session_id] = env
     obs = env.reset()
     return obs
 
 
 @app.post("/step", response_model=StepResult)
-def step(action: Action, task_name: str = "easy"):
+def step(action: Action, session_id: str):
     """Submit bug reports for the current episode."""
-    if task_name not in envs:
-        raise HTTPException(
-            status_code=400,
-            detail="Call /reset first before /step"
-        )
-    env = get_env(task_name)
+    env = get_env(session_id)
     try:
         result = env.step(action)
     except RuntimeError as e:
@@ -62,22 +68,16 @@ def step(action: Action, task_name: str = "easy"):
     return result
 
 
-@app.get("/state", response_model=Observation)
-def state(task_name: str = "easy"):
-    """Get the current observation without advancing the episode."""
-    if task_name not in envs:
-        raise HTTPException(
-            status_code=400,
-            detail="Call /reset first before /state"
-        )
-    env = get_env(task_name)
+@app.get("/state", response_model=State)
+def state(session_id: str):
+    """Get the current episode state without advancing the episode."""
+    env = get_env(session_id)
     return env.state()
 
 
 @app.get("/tasks")
 def list_tasks():
     """List all available tasks and their descriptions."""
-    from tasks import TASKS
     return {
         name: {
             "description": info["description"],

@@ -1,14 +1,15 @@
-from models import Observation, Action, StepResult
+from models import Action, Observation, State, StepResult
 from graders import grade_task
 from graders import _score_single
 from tasks import TASKS
 
 
 class CodeReviewEnv:
-    def __init__(self, task_name: str = "easy"):
+    def __init__(self, task_name: str = "easy", session_id: str | None = None):
         if task_name not in TASKS:
             raise ValueError(f"Unknown task: {task_name}. Choose from {list(TASKS.keys())}")
         self.task_name = task_name
+        self.session_id = session_id
         self.snippets = TASKS[task_name]["snippets"]
         self.correct_answers = TASKS[task_name]["answers"]
         self._step_number = 0
@@ -74,9 +75,27 @@ class CodeReviewEnv:
             },
         )
 
-    def state(self) -> Observation:
-        """Returns current observation without advancing."""
-        return self._make_observation()
+    def state(self) -> State:
+        """Returns the current episode state without advancing."""
+        if self._done or self._current_snippet_index >= len(self.snippets):
+            current_snippets = []
+        else:
+            current_snippets = [self.snippets[self._current_snippet_index]]
+
+        cumulative_score = 0.0
+        if self._rewards:
+            cumulative_score = round(sum(self._rewards) / len(self._rewards), 2)
+
+        return State(
+            snippets=current_snippets,
+            step_number=self._step_number,
+            total_snippets=len(self.snippets),
+            task_name=self.task_name,
+            session_id=self.session_id,
+            done=self._done,
+            snippets_remaining=len(self.snippets) - self._current_snippet_index,
+            cumulative_score=cumulative_score,
+        )
 
     # ─── INTERNAL ─────────────────────────────────────────────
 
@@ -92,6 +111,7 @@ class CodeReviewEnv:
             step_number=self._step_number,
             total_snippets=len(self.snippets),
             task_name=self.task_name,
+            session_id=self.session_id,
         )
 
 
