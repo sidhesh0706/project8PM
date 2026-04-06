@@ -1,0 +1,35 @@
+[
+  {
+    "snippet_id": "m1",
+    "language": "python",
+    "context": "Sends an outbound API request with retry support for transient failures",
+    "pr_description": "Added retry helper for the billing gateway client",
+    "failed_test": "assert fetch_with_retries(client, request, max_attempts=3) calls send 3 times  # Only 2 attempts happen",
+    "bug_type": "off_by_one",
+    "explanation": "The retry loop stops one attempt too early because the upper bound excludes max_attempts.",
+    "severity": "high",
+    "suggested_fix": "for attempt in range(1, max_attempts + 1):"
+  },
+  {
+    "snippet_id": "m2",
+    "language": "python",
+    "context": "Stores cache metadata tags for invalidation in the content API",
+    "pr_description": "Added helper for tagging cached CMS responses",
+    "failed_test": "assert add_cache_tag('post:1', 'news') != add_cache_tag('post:2', 'sports')  # Tags leak across requests",
+    "bug_type": "mutable_default_arg",
+    "explanation": "The default tags list is shared across calls, so cache tags leak between requests.",
+    "severity": "high",
+    "suggested_fix": "def add_cache_tag(key, tag, tags=None):\n    if tags is None:\n        tags = []"
+  },
+  {
+    "snippet_id": "m3",
+    "language": "python",
+    "context": "Extracts the event metadata from a payment webhook payload",
+    "pr_description": "Added webhook payload parser for the payments service",
+    "failed_test": "assert parse_webhook_event(None) is None  # Crashes when the provider sends an empty payload",
+    "bug_type": "missing_edge_case",
+    "explanation": "The parser assumes payload is always present and well-formed, so None crashes immediately.",
+    "severity": "medium",
+    "suggested_fix": "if not payload:\n    return None\nevent_type = payload[\"type\"]"
+  }
+]

@@ -1,0 +1,35 @@
+[
+  {
+    "snippet_id": "e1",
+    "language": "python",
+    "context": "Returns one page of results from a backend search endpoint",
+    "pr_description": "Added pagination helper for the admin search API",
+    "failed_test": "assert len(paginate_results(list(range(20)), 1, 10)) == 10  # Returns 11 items",
+    "bug_type": "off_by_one",
+    "explanation": "The page slice ends one item too far because the end index adds an extra +1.",
+    "severity": "high",
+    "suggested_fix": "end = start + page_size"
+  },
+  {
+    "snippet_id": "e2",
+    "language": "python",
+    "context": "Determines whether an auth session should be refreshed",
+    "pr_description": "Added session refresh helper for the auth middleware",
+    "failed_test": "assert should_refresh_session(expires_at=100, now=50) is False  # Refreshes active sessions",
+    "bug_type": "wrong_logic",
+    "explanation": "The refresh check is inverted. Active sessions should not be refreshed before expiry.",
+    "severity": "medium",
+    "suggested_fix": "if expires_at <= now:\n    return True"
+  },
+  {
+    "snippet_id": "e3",
+    "language": "python",
+    "context": "Calculates the final order total shown during checkout",
+    "pr_description": "Added helper for the checkout summary component",
+    "failed_test": "assert calculate_order_total(100, 10, 15) == 95  # Returns 100",
+    "bug_type": "wrong_variable",
+    "explanation": "The function subtracts tax instead of discount, so the wrong variable is applied.",
+    "severity": "high",
+    "suggested_fix": "total -= discount"
+  }
+]
