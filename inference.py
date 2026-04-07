@@ -14,16 +14,15 @@ load_dotenv()
 # ─── CONFIG ───────────────────────────────────────────────────
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
-HF_TOKEN = os.getenv("HF_TOKEN")
+API_KEY = os.getenv("API_KEY")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
-USE_LLM_BASELINE = os.getenv("USE_LLM_BASELINE", "").lower() in {"1", "true", "yes"}
 BENCHMARK = "code-review-env"
 SUCCESS_SCORE_THRESHOLD = 0.5
 
 client = None
-if USE_LLM_BASELINE and HF_TOKEN:
+if API_KEY:
     client = OpenAI(
-        api_key=HF_TOKEN,
+        api_key=API_KEY,
         base_url=API_BASE_URL,
     )
 
@@ -86,6 +85,17 @@ Return ONLY the JSON array, no other text.
 """
 
 
+def _parse_reports(raw: str) -> Action:
+    raw = raw.strip()
+    if raw.startswith("```"):
+        lines = raw.splitlines()
+        if len(lines) >= 3:
+            raw = "\n".join(lines[1:-1]).strip()
+    reports_data = json.loads(raw)
+    reports = [BugReport(**r) for r in reports_data]
+    return Action(reports=reports)
+
+
 # ─── AGENT ────────────────────────────────────────────────────
 
 def get_llm_action(snippets) -> Action:
@@ -98,12 +108,10 @@ def get_llm_action(snippets) -> Action:
             model=MODEL_NAME,
             messages=[{"role": "user", "content": prompt}],
             temperature=0.0,
-            timeout=20,
+            timeout=8,
         )
-        raw = response.choices[0].message.content.strip()
-        reports_data = json.loads(raw)
-        reports = [BugReport(**r) for r in reports_data]
-        return Action(reports=reports)
+        raw = response.choices[0].message.content or "[]"
+        return _parse_reports(raw)
     except Exception:
         return _heuristic_action(snippets)
 

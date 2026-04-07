@@ -98,8 +98,10 @@ environment_variables:
     description: The API endpoint for the LLM
   - name: MODEL_NAME
     description: The model identifier to use for inference
-  - name: HF_TOKEN
-    description: Your Hugging Face / API key
+  - name: API_KEY
+    description: The injected proxy/API key used by the OpenAI client
+  - name: LOCAL_IMAGE_NAME
+    description: Optional local image name when using docker-image based execution
 runtime:
   framework: fastapi
   port: 7860
