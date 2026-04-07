@@ -1,0 +1,90 @@
+[
+  {
+    "snippet_id": "h1",
+    "language": "python",
+    "context": "Refreshes an expired OAuth access token and stores it in the session",
+    "pr_description": "Added token refresh helper for the API gateway auth middleware",
+    "failed_test": "assert refresh_access_token(session, 'r1') is not None  # RecursionError: maximum depth exceeded",
+    "bug_type": "wrong_logic",
+    "explanation": "The refresh helper recursively calls itself with the same arguments, causing infinite recursion instead of exchanging the refresh token once.",
+    "severity": "high",
+    "suggested_fix": "token = exchange_refresh_token(session, refresh_token)"
+  },
+  {
+    "snippet_id": "h2",
+    "language": "python",
+    "context": "Reads and returns the contents of a file at the given path",
+    "pr_description": "Safe file reader that returns None on any error",
+    "failed_test": "# File handle leaks on success, bare except hides real errors",
+    "bug_type": "incorrect_exception_handling",
+    "explanation": "Bare except swallows all errors and file is never closed.",
+    "severity": "high",
+    "suggested_fix": "with open(path, 'r') as f:\n    return f.read()"
+  },
+  {
+    "snippet_id": "h3",
+    "language": "python",
+    "context": "Normalizes inbound HTTP headers before they are forwarded to downstream services",
+    "pr_description": "Added header normalization helper for the API edge proxy",
+    "failed_test": "# No failing test — function is correct",
+    "bug_type": "no_bug",
+    "explanation": "Header normalization is correct. Lowercasing keys and trimming values is the intended behavior.",
+    "severity": "low",
+    "suggested_fix": "No fix needed."
+  },
+  {
+    "snippet_id": "h4",
+    "language": "python",
+    "context": "Builds a structured audit log payload for compliance-sensitive actions",
+    "pr_description": "Added audit event formatter for the admin activity log",
+    "failed_test": "# No failing test — function is correct",
+    "bug_type": "no_bug",
+    "explanation": "The audit event builder handles optional metadata correctly. No functional bug is present.",
+    "severity": "low",
+    "suggested_fix": "No fix needed."
+  },
+  {
+    "snippet_id": "h5",
+    "language": "python",
+    "context": "Computes the request error rate for the SRE dashboard",
+    "pr_description": "Added metric helper for request error-rate alerts",
+    "failed_test": "assert compute_error_rate(4, 0) == 0.0  # Raises ZeroDivisionError instead",
+    "bug_type": "missing_edge_case",
+    "explanation": "The metric helper catches TypeError but still crashes on total_requests == 0.",
+    "severity": "high",
+    "suggested_fix": "except (TypeError, ZeroDivisionError):\n    return 0.0"
+  },
+  {
+    "snippet_id": "h6",
+    "language": "javascript",
+    "context": "Returns the age of a user object, or 'Unknown' if age is not set",
+    "pr_description": "Helper to safely access user age in the profile component",
+    "failed_test": "// getUserAge({age: 25}) returns 'Unknown' instead of 25",
+    "bug_type": "wrong_logic",
+    "explanation": "Uses = (assignment) instead of === (comparison). Always sets age to null.",
+    "severity": "high",
+    "suggested_fix": "if (user.age === null) {"
+  },
+  {
+    "snippet_id": "h7",
+    "language": "javascript",
+    "context": "Fetches JSON data from a URL and returns the parsed response",
+    "pr_description": "Async data fetching utility for the API layer",
+    "failed_test": "// Returns a Promise object instead of parsed JSON",
+    "bug_type": "missing_return",
+    "explanation": "response.json() returns a Promise. Must await it to get the actual data.",
+    "severity": "high",
+    "suggested_fix": "const data = await response.json();"
+  },
+  {
+    "snippet_id": "h8",
+    "language": "python",
+    "context": "Fetches a feature flag value, allowing request-scoped overrides when present",
+    "pr_description": "Added feature-flag accessor for the checkout rollout system",
+    "failed_test": "# Overrides persist across calls — a second request reuses the first request's flags",
+    "bug_type": "mutable_default_arg",
+    "explanation": "The default overrides dict is shared across calls, so feature flags leak between requests.",
+    "severity": "high",
+    "suggested_fix": "def get_feature_flag(flag_name, overrides=None):\n    if overrides is None:\n        overrides = {}"
+  }
+]
