@@ -1,5 +1,5 @@
 {
-  "description": "4 security-focused snippets covering SQL injection, secrets, traversal, and password hashing.",
+  "description": "5 security-focused snippets covering SQL injection, secrets, traversal, hashing, and secure no-bug validation.",
   "grader_defaults": {
     "expected_term_limit": 6,
     "fix_threshold": 0.35,

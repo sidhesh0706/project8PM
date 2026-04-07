@@ -51,27 +51,27 @@ action_space:
 
 tasks:
   - name: easy
-    description: 3 production-style review snippets with one obvious bug each
+    description: 5 production-style review snippets with obvious bugs and practical context
     difficulty: easy
-    num_snippets: 3
+    num_snippets: 5
     expected_score_range: [0.7, 1.0]
 
   - name: medium
-    description: 3 production-style snippets with subtle bugs including retries, cache state, and webhook parsing
+    description: 6 moderately subtle snippets including retries, cache state, and webhook parsing
     difficulty: medium
-    num_snippets: 3
+    num_snippets: 6
     expected_score_range: [0.4, 0.8]
 
   - name: hard
-    description: 8 advanced snippets across Python and JavaScript, including auth flows, audit events, async bugs, and no-bug traps
+    description: 14 advanced snippets across Python and JavaScript, including auth flows, audit events, async bugs, and no-bug traps
     difficulty: hard
-    num_snippets: 8
+    num_snippets: 14
     expected_score_range: [0.2, 0.7]
 
   - name: security
-    description: 4 snippets with security vulnerabilities — SQL injection, hardcoded secrets, path traversal
+    description: 5 snippets with security vulnerabilities and secure no-bug validation
     difficulty: hard
-    num_snippets: 4
+    num_snippets: 5
     expected_score_range: [0.5, 0.9]
 
 reward:
@@ -91,6 +91,9 @@ api:
     - POST /step
     - GET /state
     - GET /tasks
+    - GET /report
+    - GET /sessions/summary
+    - GET /manifest
     - GET /
 
 environment_variables:
@@ -100,6 +103,8 @@ environment_variables:
     description: The model identifier to use for inference
   - name: API_KEY
     description: The injected proxy/API key used by the OpenAI client
+  - name: HF_TOKEN
+    description: Optional credential fallback used by the baseline inference script
   - name: LOCAL_IMAGE_NAME
     description: Optional local image name when using docker-image based execution
 runtime:

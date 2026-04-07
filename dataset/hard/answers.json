@@ -126,5 +126,101 @@
       "fix_terms": ["overrides=None", "overrides is None", "overrides = {}"],
       "expected_term_limit": 6
     }
+  },
+  {
+    "snippet_id": "h9",
+    "language": "python",
+    "context": "Reads a configuration file from disk for the application bootstrap process",
+    "pr_description": "Added read_config loader for the app initialisation module",
+    "failed_test": "assert read_config('/missing.cfg') is not None  # Silently returns None on all errors",
+    "bug_type": "incorrect_exception_handling",
+    "explanation": "Catching the bare Exception class silently swallows all errors including KeyboardInterrupt and SystemExit, making failures invisible to the caller.",
+    "severity": "high",
+    "suggested_fix": "except (FileNotFoundError, PermissionError) as e:\n    logging.error(e)\n    return None",
+    "grading_hints": {
+      "explanation_terms": ["bare except", "swallow", "KeyboardInterrupt", "silent", "broad"],
+      "fix_terms": ["FileNotFoundError", "specific exception", "logging", "PermissionError"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "h10",
+    "language": "python",
+    "context": "Converts a Celsius temperature value to Fahrenheit in a weather utility",
+    "pr_description": "Added celsius_to_fahrenheit converter for the weather display module",
+    "failed_test": "assert celsius_to_fahrenheit(0) == 32  # Passes",
+    "bug_type": "no_bug",
+    "explanation": "The formula (c * 9/5) + 32 is correct and handles all standard inputs including 0, negative values, and decimals.",
+    "severity": "low",
+    "suggested_fix": "No fix needed.",
+    "grading_hints": {
+      "explanation_terms": ["correct", "formula", "no bug", "valid", "passes"],
+      "fix_terms": ["no fix", "correct implementation"],
+      "expected_term_limit": 3
+    }
+  },
+  {
+    "snippet_id": "h11",
+    "language": "python",
+    "context": "Computes the final discounted price shown on the product detail page",
+    "pr_description": "Added compute_discount helper for the pricing engine",
+    "failed_test": "assert compute_discount(200, 20) == 160  # Returns 240 — adds instead of subtracts",
+    "bug_type": "wrong_variable",
+    "explanation": "The final price adds the saving back to the original price instead of subtracting it, inflating the result rather than reducing it.",
+    "severity": "high",
+    "suggested_fix": "final = price - saving",
+    "grading_hints": {
+      "explanation_terms": ["saving", "subtract", "add", "inflate", "wrong sign"],
+      "fix_terms": ["price - saving", "final = price -"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "h12",
+    "language": "javascript",
+    "context": "Finds the maximum value in a numeric array for a statistics dashboard widget",
+    "pr_description": "Added findMax utility for the analytics chart module",
+    "failed_test": "assert findMax([-5, -3, -1]) === -1  // Returns 0 — wrong for all-negative arrays",
+    "bug_type": "wrong_logic",
+    "explanation": "Initialising max to 0 instead of -Infinity means all-negative arrays always return 0 because no element ever exceeds the seed value.",
+    "severity": "medium",
+    "suggested_fix": "let max = -Infinity;",
+    "grading_hints": {
+      "explanation_terms": ["Infinity", "seed", "negative", "initialise", "zero"],
+      "fix_terms": ["-Infinity", "Number.NEGATIVE_INFINITY", "let max ="],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "h13",
+    "language": "python",
+    "context": "Clamps a percentage value before rendering a progress indicator",
+    "pr_description": "Added clamp_percent helper for dashboard rendering",
+    "failed_test": "# No failing test - implementation is correct",
+    "bug_type": "no_bug",
+    "explanation": "The helper correctly clamps values below 0 and above 100, then returns the input value otherwise.",
+    "severity": "low",
+    "suggested_fix": "No fix needed.",
+    "grading_hints": {
+      "explanation_terms": ["clamps", "below 0", "above 100", "correct"],
+      "fix_terms": ["no fix needed"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "h14",
+    "language": "javascript",
+    "context": "Normalizes inbound event type strings used by webhook routing",
+    "pr_description": "Added normalizeEventType utility for event dispatching",
+    "failed_test": "// No failing test - function behavior is intentional",
+    "bug_type": "no_bug",
+    "explanation": "The function safely handles missing values and normalizes non-empty event names using trim and lowercase conversion.",
+    "severity": "low",
+    "suggested_fix": "No fix needed.",
+    "grading_hints": {
+      "explanation_terms": ["missing values", "trim", "lowercase", "intentional"],
+      "fix_terms": ["no fix needed"],
+      "expected_term_limit": 5
+    }
   }
 ]

@@ -62,5 +62,21 @@
       "fix_terms": ["bcrypt", "hashpw", "gensalt"],
       "expected_term_limit": 6
     }
+  },
+  {
+    "snippet_id": "s5",
+    "language": "python",
+    "context": "Fetches one user record from the database with a parameterized query",
+    "pr_description": "Added secure user fetch helper for account settings",
+    "failed_test": "# No failing test - secure implementation already used",
+    "bug_type": "no_bug",
+    "explanation": "The query uses parameter binding and does not concatenate untrusted input, so no injection bug is present.",
+    "severity": "low",
+    "suggested_fix": "No fix needed.",
+    "grading_hints": {
+      "explanation_terms": ["parameter binding", "untrusted input", "no injection", "secure"],
+      "fix_terms": ["no fix needed"],
+      "expected_term_limit": 6
+    }
   }
 ]
