@@ -1,7 +1,8 @@
 import os
 import json
 import sys
-from typing import List, Optional
+import re
+from typing import Any, List, Optional
 
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -14,7 +15,7 @@ load_dotenv()
 # ─── CONFIG ───────────────────────────────────────────────────
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
-API_KEY = os.getenv("API_KEY")
+API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 BENCHMARK = "code-review-env"
 SUCCESS_SCORE_THRESHOLD = 0.5
@@ -85,14 +86,39 @@ Return ONLY the JSON array, no other text.
 """
 
 
-def _parse_reports(raw: str) -> Action:
-    raw = raw.strip()
-    if raw.startswith("```"):
-        lines = raw.splitlines()
+def _extract_json_payload(raw: str) -> Any:
+    text = (raw or "").strip()
+    if not text:
+        return []
+
+    # Strip markdown code fences when the model wraps JSON.
+    if text.startswith("```"):
+        lines = text.splitlines()
         if len(lines) >= 3:
-            raw = "\n".join(lines[1:-1]).strip()
-    reports_data = json.loads(raw)
-    reports = [BugReport(**r) for r in reports_data]
+            text = "\n".join(lines[1:-1]).strip()
+
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: recover first JSON array/object even if extra prose exists.
+    match = re.search(r"(\[[\s\S]*\]|\{[\s\S]*\})", text)
+    if not match:
+        raise json.JSONDecodeError("No JSON payload found", text, 0)
+    return json.loads(match.group(1))
+
+
+def _parse_reports(raw: str) -> Action:
+    payload = _extract_json_payload(raw)
+    if isinstance(payload, dict):
+        if "reports" in payload and isinstance(payload["reports"], list):
+            payload = payload["reports"]
+        else:
+            payload = [payload]
+    if not isinstance(payload, list):
+        raise ValueError("Model output must be a JSON list or object.")
+    reports = [BugReport(**r) for r in payload]
     return Action(reports=reports)
 
 
@@ -313,10 +339,9 @@ if __name__ == "__main__":
         result = run_task(task_name)
         all_scores[task_name] = result["score"]
 
-    with open("scores.json", "w") as f:
+    with open("scores.json", "w", encoding="utf-8") as f:
         json.dump(all_scores, f, indent=2)
         f.flush()
 
     sys.stdout.flush()
     sys.stderr.flush()
-    os._exit(0)

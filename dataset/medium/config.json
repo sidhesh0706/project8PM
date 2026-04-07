@@ -1,5 +1,5 @@
 {
-  "description": "3 moderately subtle review snippets around retries, cache state, and webhook parsing.",
+  "description": "6 moderately subtle review snippets around retries, cache state, and webhook parsing.",
   "grader_defaults": {
     "expected_term_limit": 5,
     "fix_threshold": 0.35,

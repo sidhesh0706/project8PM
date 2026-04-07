@@ -60,6 +60,16 @@ class Reward(BaseModel):
 class Action(BaseModel):
     reports: List[BugReport]
 
+
+class ResetRequest(BaseModel):
+    task_name: str = "easy"
+
+
+class StepRequest(BaseModel):
+    session_id: Optional[str] = None
+    reports: Optional[List[BugReport]] = None
+    action: Optional[Action] = None
+
 class StepResult(BaseModel):
     observation: Observation
     reward: float

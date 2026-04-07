@@ -46,5 +46,53 @@
       "fix_terms": ["if not payload", "return None"],
       "expected_term_limit": 5
     }
+  },
+  {
+    "snippet_id": "m4",
+    "language": "python",
+    "context": "Appends an item to a list and returns it, used in a cart accumulation helper",
+    "pr_description": "Added append_item utility for the shopping cart module",
+    "failed_test": "assert append_item('a') != append_item('b')  # Both calls share the same list",
+    "bug_type": "mutable_default_arg",
+    "explanation": "Using a mutable list as a default argument means all calls share the same list object across invocations.",
+    "severity": "medium",
+    "suggested_fix": "def append_item(item, lst=None):\n    if lst is None:\n        lst = []\n    lst.append(item)\n    return lst",
+    "grading_hints": {
+      "explanation_terms": ["mutable", "default", "shared", "list", "invocation"],
+      "fix_terms": ["None", "if lst is None", "lst = []"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "m5",
+    "language": "python",
+    "context": "Checks whether a given year is a leap year in a date utility module",
+    "pr_description": "Added is_leap_year helper for the calendar utilities package",
+    "failed_test": "assert is_leap_year(2000) is True  # Returns False — misses the 400-year rule",
+    "bug_type": "wrong_logic",
+    "explanation": "The condition correctly handles the 4-year and 100-year rules but omits the 400-year exception, causing years like 2000 to be incorrectly classified.",
+    "severity": "high",
+    "suggested_fix": "return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)",
+    "grading_hints": {
+      "explanation_terms": ["400", "century", "exception", "divisible", "rule"],
+      "fix_terms": ["year % 400", "or year % 400 == 0"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "m6",
+    "language": "python",
+    "context": "Divides two numbers safely in a financial calculation helper",
+    "pr_description": "Added safe_divide utility for the payments processing module",
+    "failed_test": "assert safe_divide(10, 0) is None  # Raises ZeroDivisionError instead",
+    "bug_type": "missing_edge_case",
+    "explanation": "The function performs division without checking whether the denominator is zero, raising an unhandled ZeroDivisionError at runtime.",
+    "severity": "medium",
+    "suggested_fix": "if b == 0:\n    return None\nreturn a / b",
+    "grading_hints": {
+      "explanation_terms": ["zero", "denominator", "ZeroDivisionError", "edge case", "check"],
+      "fix_terms": ["b == 0", "return None", "if b"],
+      "expected_term_limit": 5
+    }
   }
 ]

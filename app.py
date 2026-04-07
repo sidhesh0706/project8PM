@@ -1,10 +1,19 @@
 from uuid import uuid4
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
 from env import CodeReviewEnv
-from models import Action, Observation, State, StepResult
+from models import (
+    Action,
+    BUG_TYPES,
+    Observation,
+    ResetRequest,
+    SEVERITIES,
+    State,
+    StepRequest,
+    StepResult,
+)
 from graders import grade_task
 from tasks import TASKS
 
@@ -50,26 +59,56 @@ def health():
 
 
 @app.post("/reset", response_model=Observation)
-def reset(task_name: str = "easy"):
+def reset(task_name: str = "easy", payload: ResetRequest | None = Body(default=None)):
     """Start a fresh episode for the given task."""
-    if task_name not in TASKS:
+    selected_task = payload.task_name if payload is not None else task_name
+    if selected_task not in TASKS:
         raise HTTPException(
             status_code=400,
-            detail=f"Unknown task '{task_name}'. Choose from: {', '.join(TASK_NAMES)}"
+            detail=f"Unknown task '{selected_task}'. Choose from: {', '.join(TASK_NAMES)}"
         )
     session_id = uuid4().hex
-    env = CodeReviewEnv(task_name=task_name, session_id=session_id)
+    env = CodeReviewEnv(task_name=selected_task, session_id=session_id)
     envs[session_id] = env
     obs = env.reset()
     return obs
 
 
 @app.post("/step", response_model=StepResult)
-def step(action: Action, session_id: str):
+def step(
+    session_id: str | None = None,
+    payload: dict | None = Body(default=None),
+):
     """Submit bug reports for the current episode."""
-    env = get_env(session_id)
+    resolved_session_id = session_id
+    resolved_action: Action | None = None
+
+    if payload is not None:
+        parsed = StepRequest(**payload)
+        if parsed.session_id:
+            resolved_session_id = parsed.session_id
+        if parsed.reports is not None:
+            resolved_action = Action(reports=parsed.reports)
+        elif parsed.action is not None:
+            resolved_action = parsed.action
+        else:
+            # Backward compatibility: payload is plain Action shape {"reports": [...]}
+            resolved_action = Action(**payload)
+
+    if resolved_session_id is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Missing session_id. Provide it as query param or in request body.",
+        )
+    if resolved_action is None:
+        raise HTTPException(
+            status_code=422,
+            detail="Missing action reports. Provide reports in request body.",
+        )
+
+    env = get_env(resolved_session_id)
     try:
-        result = env.step(action)
+        result = env.step(resolved_action)
     except RuntimeError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return result
@@ -91,6 +130,46 @@ def list_tasks():
             "num_snippets": len(info["snippets"]),
         }
         for name, info in TASKS.items()
+    }
+
+
+@app.get("/manifest")
+def manifest():
+    return {
+        "name": "code-review-env",
+        "version": "1.0.0",
+        "openenv_api": ["reset", "step", "state"],
+        "task_names": TASK_NAMES,
+        "task_counts": {name: len(info["snippets"]) for name, info in TASKS.items()},
+        "bug_types": list(BUG_TYPES),
+        "severities": list(SEVERITIES),
+        "extra_endpoints": ["/tasks", "/grade", "/report", "/sessions/summary", "/health", "/manifest"],
+    }
+
+
+@app.get("/report")
+def report(session_id: str):
+    """Get per-episode analytics and score trajectory for one session."""
+    env = get_env(session_id)
+    return env.episode_report()
+
+
+@app.get("/sessions/summary")
+def sessions_summary():
+    """Get a compact summary over all in-memory sessions."""
+    reports = [env.episode_report() for env in envs.values()]
+    completed = [r for r in reports if r["done"]]
+    avg_completed = round(
+        sum(r["cumulative_score"] for r in completed) / len(completed), 2
+    ) if completed else 0.0
+    return {
+        "total_sessions": len(reports),
+        "completed_sessions": len(completed),
+        "average_completed_score": avg_completed,
+        "by_task": {
+            task: len([r for r in reports if r["task_name"] == task])
+            for task in TASK_NAMES
+        },
     }
 
 
@@ -241,6 +320,8 @@ def web_view():
                 <div class="actions">
                     <a class="primary" href="/docs">Open API Docs</a>
                     <a href="/tasks">View Tasks JSON</a>
+                    <a href="/manifest">Manifest</a>
+                    <a href="/sessions/summary">Session Summary</a>
                     <a href="/openapi.json">OpenAPI Schema</a>
                     <a href="/health">Health Check</a>
                 </div>

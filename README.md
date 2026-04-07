@@ -1,6 +1,6 @@
 ---
 title: Code Review Env
-emoji: 🔍
+emoji: "🔍"
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -9,46 +9,50 @@ pinned: false
 
 # Code Review Environment
 
-An OpenEnv-style environment where an AI agent reviews code snippets,
-identifies bugs by type and severity, and suggests fixes.
+A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets, identifies bug type/severity, and proposes fixes.
 
-## Environment Description
+## Current Status
 
-The agent receives Python and JavaScript code snippets and must identify:
-- What type of bug exists (or if there is no bug)
-- How severe the bug is
-- A suggested fix for the bug
+- Round 2 qualified submission
+- OpenEnv API implemented: `reset` / `step` / `state`
+- 4 tasks with clear progression: `easy -> medium -> hard -> security`
+- Deterministic grader with partial-credit reward in `[0.0, 1.0]`
+- Baseline inference script with machine-readable logs
+- Added run analytics endpoints plus `/manifest` for evaluator visibility
+- Added automated tests and CI validation
 
-Partial credit is awarded at every level — finding the right bug type
-but wrong severity still scores 0.7. Providing a good fix on top scores 1.0.
+## Environment Design
 
-## Observation Space
+Each episode shows one snippet at a time.
+The agent submits one `BugReport` for the current snippet and receives immediate reward + feedback.
+
+### Observation Space
 
 | Field | Type | Description |
-|-------|------|-------------|
-| snippets | list[CodeSnippet] | Python and JavaScript code snippets to review |
-| step_number | int | Current step in the episode |
-| total_snippets | int | Total snippets in this task |
-| task_name | str | Name of the current task |
-| session_id | str \| null | Session identifier returned by `/reset` |
+|------|------|-------------|
+| `snippets` | `list[CodeSnippet]` | Current snippet only (single-step reveal) |
+| `step_number` | `int` | Current step in episode |
+| `total_snippets` | `int` | Total snippets in selected task |
+| `task_name` | `str` | Active task |
+| `session_id` | `str \| null` | Session identifier from `/reset` |
 
-## Action Space
+### Action Space
 
-| Field | Type | Values |
-|-------|------|--------|
-| reports | list[BugReport] | One report per snippet |
-| bug_type | enum | off_by_one, wrong_variable, missing_return, mutable_default_arg, wrong_logic, missing_edge_case, incorrect_exception_handling, hardcoded_secret, no_bug |
-| severity | enum | low, medium, high |
-| suggested_fix | str | Corrected line(s) of code |
+| Field | Type | Description |
+|------|------|-------------|
+| `reports` | `list[BugReport]` | Submitted bug reports |
+| `bug_type` | `enum` | `off_by_one`, `wrong_variable`, `missing_return`, `mutable_default_arg`, `wrong_logic`, `missing_edge_case`, `incorrect_exception_handling`, `hardcoded_secret`, `no_bug` |
+| `severity` | `enum` | `low`, `medium`, `high` |
+| `suggested_fix` | `str` | Proposed correction |
 
 ## Tasks
 
 | Task | Snippets | Languages | Description |
 |------|----------|-----------|-------------|
-| easy | 3 | Python | Production-style snippets with one obvious bug per snippet |
-| medium | 3 | Python | Production-style snippets with retries, cache state, and webhook edge cases |
-| hard | 8 | Python + JavaScript | Advanced review cases with auth flows, async bugs, and deliberate no-bug traps |
-| security | 4 | Python | SQL injection, hardcoded secrets, path traversal, weak hashing |
+| `easy` | 5 | Python | Obvious but realistic production bugs |
+| `medium` | 6 | Python | Subtle retries/cache/webhook issues |
+| `hard` | 14 | Python + JavaScript | Advanced regressions + no-bug traps (extra hard negatives) |
+| `security` | 5 | Python | SQL injection, secrets, traversal, hashing, and secure no-bug validation |
 
 ## What makes this environment unique
 
@@ -61,93 +65,133 @@ but wrong severity still scores 0.7. Providing a good fix on top scores 1.0.
 - **No-bug detection** — some snippets have no bug, agent must avoid false positives
 - **Partial credit grading** — 6 score levels rewarding nuanced understanding
 
-## Scoring
+## Reward Logic
 
 | Condition | Score |
-|-----------|-------|
-| Correct bug type + correct severity + good fix | **1.0** |
-| Correct bug type + correct severity + weak fix | **0.8** |
-| Correct bug type + wrong severity + good fix | **0.7** |
-| Correct bug type + wrong severity + weak fix | **0.5** |
-| Wrong bug type | **0.2** |
-| False positive on no-bug snippet | **0.0** |
-| Missed snippet | **0.0** |
+|----------|-------|
+| Correct bug type + correct severity + high-quality fix | `1.0` |
+| Correct bug type + correct severity + weak fix | `0.8` |
+| Correct bug type + non-exact severity + high-quality fix | `0.7` |
+| Correct bug type + non-exact severity + weak fix | `0.5` |
+| Wrong bug type | `0.2` |
+| Missed snippet / false positive on no-bug case | `0.0` |
 
-Partial credit is awarded at every level — the reward function provides signal across the full trajectory, not just at episode end.
+The grader is deterministic and checks:
+- bug/severity correctness
+- explanation quality
+- fix quality
+- context grounding and specificity
 
-Each episode reveals one snippet at a time. The agent must submit a report for the current snippet, receive a reward, and continue until the task is complete.
+## API Endpoints
 
-The grader is deterministic and combines exact bug-type matching with semantic checks on the explanation and suggested fix so partially correct reviews receive partial credit.
+| Method | Endpoint | Purpose |
+|------|----------|---------|
+| `GET` | `/` | Service metadata / running status |
+| `GET` | `/health` | Health check |
+| `POST` | `/reset` | Start episode |
+| `POST` | `/step` | Submit action |
+| `GET` | `/state` | Current session state |
+| `GET` | `/tasks` | Task catalog |
+| `GET` | `/manifest` | Project/task schema summary for evaluators |
+| `GET` | `/report` | Detailed per-session analytics |
+| `GET` | `/sessions/summary` | Aggregate session summary |
+| `POST` | `/grade` | Offline grading for full-task submission |
 
-## Setup & Run Locally
+`/reset` and `/step` support both query-style and JSON-body usage for evaluator compatibility.
+
+## Setup
+
+### Local
+
 ```bash
 git clone https://github.com/sidhesh0706/project8PM
 cd project8PM
 pip install -r requirements.txt
-python app.py
-```
-
-You can also run with:
-
-```bash
 uvicorn app:app --host 0.0.0.0 --port 7860
 ```
 
-## Run with Docker
+### Docker
+
 ```bash
 docker build -t code-review-env .
-docker run -p 7860:7860 \
-  -e API_BASE_URL=https://your-proxy.example/v1 \
-  -e MODEL_NAME=your-model-name \
-  -e API_KEY=your_key_here \
-  code-review-env
+docker run -p 7860:7860 code-review-env
 ```
 
-## Run Inference
+## Baseline Inference
+
 ```bash
-export API_BASE_URL=https://your-proxy.example/v1
-export MODEL_NAME=your-model-name
-export API_KEY=your_key_here
 python inference.py
 ```
 
-`API_BASE_URL` and `MODEL_NAME` have defaults in `inference.py`. `API_KEY` does not.
-If you use a docker-image based runner, you can also set `LOCAL_IMAGE_NAME`.
-
-When `API_KEY` is present, `inference.py` uses the OpenAI client with `base_url=API_BASE_URL` and sends real proxy traffic. If no API key is present locally, it falls back to a deterministic heuristic baseline.
-
-## Inference Output Format
-```text
-[START] task=easy env=code-review-env model=llama-3.3-70b-versatile
-[STEP] step=1 action=review(snippet=e1) reward=1.00 done=false error=null
-[STEP] step=2 action=review(snippet=e2) reward=0.70 done=false error=null
-[STEP] step=3 action=review(snippet=e3) reward=1.00 done=true error=null
-[END] success=true steps=3 score=0.900 rewards=1.00,0.70,1.00
-```
-
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | / | Health check |
-| POST | /reset | Start a new episode and return a `session_id` |
-| POST | /step | Submit bug reports for a `session_id` |
-| GET | /state | Get current observation for a `session_id` |
-| GET | /tasks | List all tasks |
-
-All four tasks currently supported by the API are `easy`, `medium`, `hard`, and `security`.
-
-Call `/reset` first, then pass the returned `session_id` to `/step` and `/state`.
-
-## Environment Variables
+Environment variables:
 
 | Variable | Description |
 |----------|-------------|
-| API_BASE_URL | LLM API endpoint |
-| MODEL_NAME | Model identifier |
-| API_KEY | Proxy/API key used by the OpenAI client |
-| LOCAL_IMAGE_NAME | Optional local image name for docker-image based runs |
+| `API_BASE_URL` | LLM endpoint (default present) |
+| `MODEL_NAME` | Model id (default present) |
+| `API_KEY` | Primary credential |
+| `HF_TOKEN` | Credential fallback accepted by baseline |
+| `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
+
+Expected logs include:
+- `[START] ...`
+- `[STEP] ...`
+- `[END] ...`
+
+Baseline writes `scores.json` with per-task scores in `[0.0, 1.0]`.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Included:
+- `tests/test_api_contract.py`
+- `tests/test_grader_determinism.py`
+
+## Submission Validation
+
+Run preflight validator before submitting:
+
+```bash
+python validate_submission.py
+```
+
+It checks:
+- task + dataset integrity
+- `openenv.yaml` alignment with real task counts
+- API contract behavior via `TestClient`
+- manifest endpoint availability and schema keys
+- baseline reproducibility/log format (`[START]`, `[STEP]`, `[END]`)
+- `scores.json` validity
+
+## CI
+
+GitHub Actions workflow: `.github/workflows/ci.yml`
+
+It runs on push/pull request and executes:
+1. dependency install
+2. unit tests
+3. `python validate_submission.py`
+
+## Reproducibility
+
+Full runbook is documented in `REPRODUCIBILITY.md`.
+
+## Judge Quick Run
+
+```bash
+# 1) Start server
+uvicorn app:app --host 0.0.0.0 --port 7860
+
+# 2) Run tests
+python -m unittest discover -s tests -v
+
+# 3) Run preflight
+python validate_submission.py
+```
 
 ## Live Demo
 
-[https://huggingface.co/spaces/sid0706/code-review-env](https://huggingface.co/spaces/sid0706/code-review-env)
+https://huggingface.co/spaces/sid0706/code-review-env

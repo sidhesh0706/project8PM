@@ -16,6 +16,23 @@ STOPWORDS = {
     "without", "workflow", "wrong",
 }
 
+GENERIC_EXPLANATION_PHRASES = (
+    "likely logic issue",
+    "review the implementation",
+    "align it with the intended behavior",
+    "there is a bug",
+    "something is wrong",
+)
+
+GENERIC_FIX_PHRASES = (
+    "review the implementation",
+    "fix the logic",
+    "update the code",
+    "correct the implementation",
+    "handle the edge case",
+    "no changes needed",
+)
+
 BUG_TYPE_HINTS = {
     "off_by_one": {"boundary", "index", "range", "slice"},
     "wrong_variable": {"field", "variable", "discount", "tax"},
@@ -138,7 +155,14 @@ def _build_snippet_expectations(
         rubric_fix_terms | _extract_keywords(suggested_fix) | bug_hints | shared_terms,
         limit=limit,
     )
-    return {"explanation": explanation_terms, "fix": fix_terms}
+    grounding_terms = _select_expected_terms(
+        _extract_keywords(metadata["context"])
+        | _extract_keywords(metadata["pr_description"])
+        | _extract_keywords(metadata["failed_test"])
+        | _extract_code_identifiers(metadata["code"]),
+        limit=max(limit, 6),
+    )
+    return {"explanation": explanation_terms, "fix": fix_terms, "grounding": grounding_terms}
 
 
 def _semantic_match_score(submitted_text: str, reference_text: str) -> float:
@@ -158,6 +182,46 @@ def _coverage_score(text: str, expected_terms: set[str]) -> float:
     return matches / len(expected_terms)
 
 
+def _contains_generic_phrase(text: str, phrases: tuple[str, ...]) -> bool:
+    normalized = _normalize(text)
+    return any(phrase in normalized for phrase in phrases)
+
+
+def _context_grounding_score(text: str, grounding_terms: set[str]) -> float:
+    """Rewards tying the answer to snippet-specific context and identifiers."""
+    if not text.strip():
+        return 0.0
+    return _coverage_score(text, grounding_terms)
+
+
+def _looks_like_concrete_fix(text: str) -> float:
+    """Prefers concrete patch-like fixes over generic advice."""
+    normalized = _normalize(text)
+    if not normalized:
+        return 0.0
+
+    if _contains_generic_phrase(normalized, GENERIC_FIX_PHRASES):
+        return 0.0
+
+    has_code_cues = any(
+        cue in text
+        for cue in ("=", "==", "===", "return ", "if ", "for ", "while ", "except", "await", "def ", "const ", "let ")
+    )
+    has_multiline = "\n" in text
+    token_count = len(re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", text))
+
+    signal = 0.0
+    if has_code_cues:
+        signal += 0.45
+    if has_multiline:
+        signal += 0.2
+    if token_count >= 4:
+        signal += 0.2
+    if token_count >= 8:
+        signal += 0.15
+    return min(signal, 1.0)
+
+
 def _explanation_quality_score(submitted: BugReport, correct: BugReport) -> float:
     explanation = submitted.explanation or ""
     if len(explanation.strip()) < 8:
@@ -167,9 +231,14 @@ def _explanation_quality_score(submitted: BugReport, correct: BugReport) -> floa
         correct.snippet_id, correct.bug_type, correct.explanation, correct.suggested_fix
     )
     expected_explanation_terms = snippet_expectations["explanation"]
+    grounding_terms = snippet_expectations["grounding"]
     coverage = _coverage_score(explanation, expected_explanation_terms)
     similarity = _semantic_match_score(explanation, correct.explanation)
-    return max(coverage, similarity)
+    grounding = _context_grounding_score(explanation, grounding_terms)
+    quality = max(coverage, similarity, grounding)
+    if _contains_generic_phrase(explanation, GENERIC_EXPLANATION_PHRASES):
+        quality *= 0.6
+    return quality
 
 
 def _fix_quality_score(submitted: BugReport, correct: BugReport) -> float:
@@ -183,9 +252,15 @@ def _fix_quality_score(submitted: BugReport, correct: BugReport) -> float:
         correct.snippet_id, correct.bug_type, correct.explanation, correct.suggested_fix
     )
     expected_fix_terms = snippet_expectations["fix"]
+    grounding_terms = snippet_expectations["grounding"]
     coverage = _coverage_score(suggested_fix, expected_fix_terms)
     similarity = _semantic_match_score(suggested_fix, correct.suggested_fix)
-    return max(coverage, similarity)
+    grounding = _context_grounding_score(suggested_fix, grounding_terms)
+    concreteness = _looks_like_concrete_fix(suggested_fix)
+    quality = max(coverage, similarity, grounding * 0.85, concreteness * 0.75)
+    if _contains_generic_phrase(suggested_fix, GENERIC_FIX_PHRASES):
+        quality *= 0.5
+    return quality
 
 
 def _severity_alignment(submitted: BugReport, correct: BugReport) -> dict[str, float | bool]:

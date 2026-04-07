@@ -46,5 +46,37 @@
       "fix_terms": ["discount", "total -="],
       "expected_term_limit": 5
     }
+  },
+  {
+    "snippet_id": "e4",
+    "language": "python",
+    "context": "Returns the last N items from a list in a utility helper",
+    "pr_description": "Added get_last_n_items helper for the data processing module",
+    "failed_test": "assert get_last_n_items([1,2,3,4,5], 3) == [3,4,5]  # Returns [3,4,5,None]",
+    "bug_type": "off_by_one",
+    "explanation": "The slice end index uses len(lst) + 1 instead of len(lst), reading one index past the list boundary.",
+    "severity": "medium",
+    "suggested_fix": "return lst[len(lst) - n : len(lst)]",
+    "grading_hints": {
+      "explanation_terms": ["slice", "end index", "boundary", "len", "extra"],
+      "fix_terms": ["len(lst)", "lst[-n:]", "len(lst) - n"],
+      "expected_term_limit": 5
+    }
+  },
+  {
+    "snippet_id": "e5",
+    "language": "python",
+    "context": "Multiplies two numbers and returns the result in a math utility module",
+    "pr_description": "Added multiply helper for the arithmetic utilities package",
+    "failed_test": "assert multiply(3, 4) == 12  # Returns None",
+    "bug_type": "missing_return",
+    "explanation": "The function computes the result into a local variable but never returns it, so the caller always receives None.",
+    "severity": "high",
+    "suggested_fix": "return result",
+    "grading_hints": {
+      "explanation_terms": ["return", "None", "local variable", "result", "missing"],
+      "fix_terms": ["return result", "return a * b"],
+      "expected_term_limit": 5
+    }
   }
 ]
