@@ -43,6 +43,11 @@ def root():
 
 # ─── OPENENV ENDPOINTS ────────────────────────────────────────
 
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+
 @app.post("/reset", response_model=Observation)
 def reset(task_name: str = "easy"):
     """Start a fresh episode for the given task."""
