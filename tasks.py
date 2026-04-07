@@ -22,11 +22,13 @@ def build_tasks():
         if not answers_file.exists():
             continue
 
+        task_config = {}
         description = f"{tier_name.capitalize()} tier: dynamically loaded."
         if config_file.exists():
             try:
                 with open(config_file, "r", encoding="utf-8") as f:
-                    description = json.load(f).get("description", description)
+                    task_config = json.load(f)
+                    description = task_config.get("description", description)
             except json.JSONDecodeError:
                 pass
 
@@ -39,6 +41,7 @@ def build_tasks():
 
         snippets = []
         answers = []
+        rubrics = {}
 
         for item in answers_data:
             snippet_id = item.get("snippet_id")
@@ -69,6 +72,7 @@ def build_tasks():
 
                 snippets.append(validated_snippet)
                 answers.append(validated_answer)
+                rubrics[snippet_id] = item.get("grading_hints", {})
 
             except ValidationError as e:
                 print(f"[WARNING] Validation failed for '{snippet_id}': {e}")
@@ -78,6 +82,8 @@ def build_tasks():
             TASKS[tier_name] = {
                 "snippets": snippets,
                 "answers": answers,
+                "rubrics": rubrics,
+                "config": task_config,
                 "description": description,
             }
 

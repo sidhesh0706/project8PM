@@ -8,7 +8,12 @@
     "bug_type": "off_by_one",
     "explanation": "The retry loop stops one attempt too early because the upper bound excludes max_attempts.",
     "severity": "high",
-    "suggested_fix": "for attempt in range(1, max_attempts + 1):"
+    "suggested_fix": "for attempt in range(1, max_attempts + 1):",
+    "grading_hints": {
+      "explanation_terms": ["upper bound", "max_attempts", "one attempt too early"],
+      "fix_terms": ["range", "max_attempts + 1"],
+      "expected_term_limit": 5
+    }
   },
   {
     "snippet_id": "m2",
@@ -19,7 +24,12 @@
     "bug_type": "mutable_default_arg",
     "explanation": "The default tags list is shared across calls, so cache tags leak between requests.",
     "severity": "high",
-    "suggested_fix": "def add_cache_tag(key, tag, tags=None):\n    if tags is None:\n        tags = []"
+    "suggested_fix": "def add_cache_tag(key, tag, tags=None):\n    if tags is None:\n        tags = []",
+    "grading_hints": {
+      "explanation_terms": ["shared", "default tags list", "leak"],
+      "fix_terms": ["tags=None", "tags is None", "tags = []"],
+      "expected_term_limit": 5
+    }
   },
   {
     "snippet_id": "m3",
@@ -30,6 +40,11 @@
     "bug_type": "missing_edge_case",
     "explanation": "The parser assumes payload is always present and well-formed, so None crashes immediately.",
     "severity": "medium",
-    "suggested_fix": "if not payload:\n    return None\nevent_type = payload[\"type\"]"
+    "suggested_fix": "if not payload:\n    return None\nevent_type = payload[\"type\"]",
+    "grading_hints": {
+      "explanation_terms": ["payload", "none", "empty payload", "crashes"],
+      "fix_terms": ["if not payload", "return None"],
+      "expected_term_limit": 5
+    }
   }
 ]

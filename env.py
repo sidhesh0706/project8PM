@@ -1,6 +1,5 @@
-from models import Action, Observation, State, StepResult
-from graders import grade_task
-from graders import _score_single
+from models import Action, Observation, Reward, State, StepResult
+from graders import score_report
 from tasks import TASKS
 
 
@@ -46,12 +45,9 @@ class CodeReviewEnv:
         )
 
         # Score this single snippet
-        if report is None:
-            reward = 0.0
-            reason = "not attempted"
-        else:
-            reward = _score_single(report, correct_answer)
-            reason = _get_reason(reward)
+        result = score_report(report, correct_answer)
+        reward = result["score"]
+        reason = result["reason"]
 
         self._rewards.append(reward)
         self._step_number += 1
@@ -63,6 +59,12 @@ class CodeReviewEnv:
         return StepResult(
             observation=self._make_observation(),
             reward=reward,
+            reward_details=Reward(
+                value=reward,
+                reason=reason,
+                explanation_quality=result["explanation_quality"],
+                fix_quality=result["fix_quality"],
+            ),
             done=self._done,
             info={
                 "task": self.task_name,
@@ -113,48 +115,3 @@ class CodeReviewEnv:
             task_name=self.task_name,
             session_id=self.session_id,
         )
-
-
-def _get_reason(reward: float) -> str:
-    if reward == 1.0:
-        return "correct"
-    elif reward == 0.8:
-        return "correct bug and severity, fix missing or weak"
-    elif reward == 0.7:
-        return "correct bug type, wrong severity, good fix"
-    elif reward == 0.5:
-        return "correct bug type, wrong severity, weak fix"
-    elif reward == 0.2:
-        return "wrong bug type"
-    else:
-        return "incorrect"
-
-
-# ─── SMOKE TEST ───────────────────────────────────────────────
-if __name__ == "__main__":
-    from tasks import EASY_ANSWERS, MEDIUM_ANSWERS, HARD_ANSWERS
-    from models import Action
-
-    for task_name, answers in [
-        ("easy", EASY_ANSWERS),
-        ("medium", MEDIUM_ANSWERS),
-        ("hard", HARD_ANSWERS),
-    ]:
-        env = CodeReviewEnv(task_name=task_name)
-        obs = env.reset()
-        print(f"\n--- {task_name.upper()} TASK ---")
-        print(f"Total snippets: {obs.total_snippets}")
-
-        all_rewards = []
-        step = 0
-        while not env._done:
-            current_id = obs.snippets[0].id if obs.snippets else None
-            answer = next((a for a in answers if a.snippet_id == current_id), None)
-            result = env.step(Action(reports=[answer] if answer else []))
-            all_rewards.append(result.reward)
-            obs = result.observation
-            step += 1
-            print(f"Step {step}: snippet={current_id} reward={result.reward} done={result.done}")
-
-        final_score = round(sum(all_rewards) / len(all_rewards), 2)
-        print(f"Final score: {final_score}")

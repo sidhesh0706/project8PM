@@ -49,11 +49,20 @@ class State(BaseModel):
     snippets_remaining: int
     cumulative_score: float
 
+
+class Reward(BaseModel):
+    value: float
+    reason: str
+    explanation_quality: float = 0.0
+    fix_quality: float = 0.0
+
+
 class Action(BaseModel):
     reports: List[BugReport]
 
 class StepResult(BaseModel):
     observation: Observation
     reward: float
+    reward_details: Optional[Reward] = None
     done: bool
     info: dict

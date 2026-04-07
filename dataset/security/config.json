@@ -1,5 +1,5 @@
 {
-  "description": "8 mixed Python and JavaScript snippets, including subtle regressions and no-bug traps.",
+  "description": "4 security-focused snippets covering SQL injection, secrets, traversal, and password hashing.",
   "grader_defaults": {
     "expected_term_limit": 6,
     "fix_threshold": 0.35,

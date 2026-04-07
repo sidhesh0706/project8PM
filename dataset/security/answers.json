@@ -8,7 +8,12 @@
     "bug_type": "wrong_logic",
     "explanation": "String concatenation in SQL query allows SQL injection attacks.",
     "severity": "high",
-    "suggested_fix": "query = 'SELECT * FROM users WHERE id = ?'\ndb.execute(query, (user_id,))"
+    "suggested_fix": "query = 'SELECT * FROM users WHERE id = ?'\ndb.execute(query, (user_id,))",
+    "grading_hints": {
+      "explanation_terms": ["SQL injection", "string concatenation", "query"],
+      "fix_terms": ["parameterized", "WHERE id = ?", "db.execute"],
+      "expected_term_limit": 6
+    }
   },
   {
     "snippet_id": "s2",
@@ -19,7 +24,12 @@
     "bug_type": "hardcoded_secret",
     "explanation": "AWS credentials hardcoded in source code expose them to anyone with repo access.",
     "severity": "high",
-    "suggested_fix": "Use environment variables: os.getenv('AWS_SECRET_KEY')"
+    "suggested_fix": "Use environment variables: os.getenv('AWS_SECRET_KEY')",
+    "grading_hints": {
+      "explanation_terms": ["hardcoded", "credentials", "repo access"],
+      "fix_terms": ["environment variables", "os.getenv", "AWS_SECRET_KEY"],
+      "expected_term_limit": 6
+    }
   },
   {
     "snippet_id": "s3",
@@ -30,7 +40,12 @@
     "bug_type": "missing_edge_case",
     "explanation": "No validation of filename allows path traversal attacks using ../",
     "severity": "high",
-    "suggested_fix": "filename = os.path.basename(filename)\nfilepath = os.path.join(base_dir, filename)"
+    "suggested_fix": "filename = os.path.basename(filename)\nfilepath = os.path.join(base_dir, filename)",
+    "grading_hints": {
+      "explanation_terms": ["filename validation", "path traversal", "../"],
+      "fix_terms": ["basename", "join", "base_dir"],
+      "expected_term_limit": 6
+    }
   },
   {
     "snippet_id": "s4",
@@ -41,6 +56,11 @@
     "bug_type": "wrong_logic",
     "explanation": "MD5 is cryptographically broken. Use bcrypt or argon2 for password hashing.",
     "severity": "high",
-    "suggested_fix": "import bcrypt\nreturn bcrypt.hashpw(password.encode(), bcrypt.gensalt())"
+    "suggested_fix": "import bcrypt\nreturn bcrypt.hashpw(password.encode(), bcrypt.gensalt())",
+    "grading_hints": {
+      "explanation_terms": ["MD5", "broken", "password hashing"],
+      "fix_terms": ["bcrypt", "hashpw", "gensalt"],
+      "expected_term_limit": 6
+    }
   }
 ]

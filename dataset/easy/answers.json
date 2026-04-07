@@ -8,7 +8,12 @@
     "bug_type": "off_by_one",
     "explanation": "The page slice ends one item too far because the end index adds an extra +1.",
     "severity": "high",
-    "suggested_fix": "end = start + page_size"
+    "suggested_fix": "end = start + page_size",
+    "grading_hints": {
+      "explanation_terms": ["slice", "end index", "extra", "page_size"],
+      "fix_terms": ["start + page_size", "end"],
+      "expected_term_limit": 5
+    }
   },
   {
     "snippet_id": "e2",
@@ -19,7 +24,12 @@
     "bug_type": "wrong_logic",
     "explanation": "The refresh check is inverted. Active sessions should not be refreshed before expiry.",
     "severity": "medium",
-    "suggested_fix": "if expires_at <= now:\n    return True"
+    "suggested_fix": "if expires_at <= now:\n    return True",
+    "grading_hints": {
+      "explanation_terms": ["inverted", "expiry", "active sessions", "refresh"],
+      "fix_terms": ["expires_at <= now", "return true"],
+      "expected_term_limit": 5
+    }
   },
   {
     "snippet_id": "e3",
@@ -30,6 +40,11 @@
     "bug_type": "wrong_variable",
     "explanation": "The function subtracts tax instead of discount, so the wrong variable is applied.",
     "severity": "high",
-    "suggested_fix": "total -= discount"
+    "suggested_fix": "total -= discount",
+    "grading_hints": {
+      "explanation_terms": ["tax", "discount", "wrong variable"],
+      "fix_terms": ["discount", "total -="],
+      "expected_term_limit": 5
+    }
   }
 ]

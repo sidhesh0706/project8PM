@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 
 from env import CodeReviewEnv
 from models import Action, Observation, State, StepResult
+from graders import grade_task
 from tasks import TASKS
 
 app = FastAPI(
@@ -85,6 +86,17 @@ def list_tasks():
         }
         for name, info in TASKS.items()
     }
+
+
+@app.post("/grade")
+def grade(action: Action, task_name: str = "easy"):
+    """Grade a full-task submission without stepping through the live environment."""
+    if task_name not in TASKS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unknown task '{task_name}'. Choose from: {', '.join(TASK_NAMES)}",
+        )
+    return grade_task(task_name, action.reports)
 
 
 # ─── RUN ──────────────────────────────────────────────────────
