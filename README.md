@@ -111,6 +111,9 @@ export HF_TOKEN=your_key_here
 python inference.py
 ```
 
+`API_BASE_URL` and `MODEL_NAME` have defaults in `inference.py`. `HF_TOKEN` does not.
+If you use a docker-image based runner, you can also set `LOCAL_IMAGE_NAME`.
+
 The default baseline is deterministic and offline-friendly for validator reproducibility. To force live LLM calls, set `USE_LLM_BASELINE=1` in addition to the variables above.
 
 ## Inference Output Format
@@ -143,6 +146,7 @@ Call `/reset` first, then pass the returned `session_id` to `/step` and `/state`
 | API_BASE_URL | LLM API endpoint |
 | MODEL_NAME | Model identifier |
 | HF_TOKEN | Your API key |
+| LOCAL_IMAGE_NAME | Optional local image name for docker-image based runs |
 | USE_LLM_BASELINE | Optional flag to enable live model calls in `inference.py` |
 
 ## Live Demo

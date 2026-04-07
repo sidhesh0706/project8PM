@@ -14,7 +14,8 @@ load_dotenv()
 # ─── CONFIG ───────────────────────────────────────────────────
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
+HF_TOKEN = os.getenv("HF_TOKEN")
+LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 USE_LLM_BASELINE = os.getenv("USE_LLM_BASELINE", "").lower() in {"1", "true", "yes"}
 BENCHMARK = "code-review-env"
 SUCCESS_SCORE_THRESHOLD = 0.5
