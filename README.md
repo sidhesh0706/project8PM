@@ -9,7 +9,7 @@ pinned: false
 
 # Code Review Environment
 
-A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets, identifies bug type/severity, and proposes fixes.
+A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets, identifies bug type and severity, and proposes fixes.
 
 ## Current Status
 
@@ -24,7 +24,7 @@ A real-world OpenEnv benchmark where an agent performs pull-request style code r
 ## Environment Design
 
 Each episode shows one snippet at a time.
-The agent submits one `BugReport` for the current snippet and receives immediate reward + feedback.
+The agent submits one `BugReport` for the current snippet and receives immediate reward plus feedback.
 
 ### Observation Space
 
@@ -54,16 +54,16 @@ The agent submits one `BugReport` for the current snippet and receives immediate
 | `hard` | 14 | Python + JavaScript | Advanced regressions + no-bug traps (extra hard negatives) |
 | `security` | 5 | Python | SQL injection, secrets, traversal, hashing, and secure no-bug validation |
 
-## What makes this environment unique
+## What Makes This Environment Unique
 
-- **Multi-language** — supports both Python and JavaScript snippets
-- **PR context** — each snippet includes a pull request description and intent, mimicking real code review
-- **Real-world review flow** — tasks cover pagination, auth refresh, checkout totals, retry logic, cache invalidation, webhooks, and security bugs
-- **Hard-mode ambiguity** — advanced tasks include realistic no-bug snippets and subtle regressions that reward reviewer restraint
-- **Fix suggestion scoring** — agent must not only identify the bug but suggest a correct fix
-- **Security vulnerability detection** — dedicated task for real-world security bugs
-- **No-bug detection** — some snippets have no bug, agent must avoid false positives
-- **Partial credit grading** — 6 score levels rewarding nuanced understanding
+- **Multi-language** - supports both Python and JavaScript snippets
+- **PR context** - each snippet includes a pull request description and intent, mimicking real code review
+- **Real-world review flow** - tasks cover pagination, auth refresh, checkout totals, retry logic, cache invalidation, webhooks, and security bugs
+- **Hard-mode ambiguity** - advanced tasks include realistic no-bug snippets and subtle regressions that reward reviewer restraint
+- **Fix suggestion scoring** - the agent must not only identify the bug but suggest a correct fix
+- **Security vulnerability detection** - dedicated task for real-world security bugs
+- **No-bug detection** - some snippets have no bug, so the agent must avoid false positives
+- **Partial credit grading** - 6 score levels rewarding nuanced understanding
 
 ## Reward Logic
 
@@ -77,7 +77,7 @@ The agent submits one `BugReport` for the current snippet and receives immediate
 | Missed snippet / false positive on no-bug case | `0.0` |
 
 The grader is deterministic and checks:
-- bug/severity correctness
+- bug and severity correctness
 - explanation quality
 - fix quality
 - context grounding and specificity
@@ -95,6 +95,7 @@ The grader is deterministic and checks:
 | `GET` | `/manifest` | Project/task schema summary for evaluators |
 | `GET` | `/report` | Detailed per-session analytics |
 | `GET` | `/sessions/summary` | Aggregate session summary |
+| `GET` | `/web` | Browser-friendly benchmark overview |
 | `POST` | `/grade` | Offline grading for full-task submission |
 
 `/reset` and `/step` support both query-style and JSON-body usage for evaluator compatibility.
@@ -129,9 +130,11 @@ Environment variables:
 |----------|-------------|
 | `API_BASE_URL` | LLM endpoint (default present) |
 | `MODEL_NAME` | Model id (default present) |
-| `API_KEY` | Primary credential |
-| `HF_TOKEN` | Credential fallback accepted by baseline |
+| `API_KEY` | Primary credential used by the injected LiteLLM/OpenAI-compatible proxy |
+| `HF_TOKEN` | Credential fallback accepted by the baseline for local use |
 | `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
+
+When `API_KEY` is present, `inference.py` uses the OpenAI client with `base_url=API_BASE_URL` and sends proxy traffic through the injected LiteLLM endpoint.
 
 Expected logs include:
 - `[START] ...`
@@ -159,18 +162,18 @@ python validate_submission.py
 ```
 
 It checks:
-- task + dataset integrity
+- task and dataset integrity
 - `openenv.yaml` alignment with real task counts
 - API contract behavior via `TestClient`
 - manifest endpoint availability and schema keys
-- baseline reproducibility/log format (`[START]`, `[STEP]`, `[END]`)
+- baseline reproducibility and log format (`[START]`, `[STEP]`, `[END]`)
 - `scores.json` validity
 
 ## CI
 
 GitHub Actions workflow: `.github/workflows/ci.yml`
 
-It runs on push/pull request and executes:
+It runs on push and pull request and executes:
 1. dependency install
 2. unit tests
 3. `python validate_submission.py`
@@ -194,4 +197,4 @@ python validate_submission.py
 
 ## Live Demo
 
-https://huggingface.co/spaces/sid0706/code-review-env
+[https://huggingface.co/spaces/sid0706/code-review-env](https://huggingface.co/spaces/sid0706/code-review-env)
