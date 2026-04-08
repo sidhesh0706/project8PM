@@ -9,32 +9,34 @@ pinned: false
 
 # Code Review Environment
 
-A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets, identifies bug type and severity, and proposes fixes.
+A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets. For each snippet, the agent must identify the bug type, assign severity, and suggest a fix.
 
-## Current Status
+This environment is designed to evaluate whether an agent can behave like a practical software reviewer rather than solve a toy task. It rewards accurate diagnosis, good reviewer restraint on no-bug snippets, and concrete fixes that address the real root cause.
 
-- Round 2 qualified submission
-- OpenEnv API implemented: `reset` / `step` / `state`
-- 4 tasks with clear progression: `easy -> medium -> hard -> security`
-- Deterministic grader with partial-credit reward in `[0.0, 1.0]`
-- Baseline inference script with machine-readable logs
-- Added run analytics endpoints plus `/manifest` for evaluator visibility
-- Added automated tests and CI validation
+## Why This Benchmark Matters
+
+Most coding benchmarks focus on generation. This one focuses on **review**:
+- understanding intent from PR-style context
+- spotting subtle logic, async, state, and security bugs
+- avoiding false positives on correct code
+- proposing fixes, not just naming the issue
+
+That makes it useful for evaluating real-world engineering agents that assist with pull requests, CI review, or code-quality workflows.
 
 ## Environment Design
 
-Each episode shows one snippet at a time.
-The agent submits one `BugReport` for the current snippet and receives immediate reward plus feedback.
+Each episode reveals **one snippet at a time**.
+The agent submits a `BugReport` for the current snippet and receives immediate reward and feedback.
 
 ### Observation Space
 
 | Field | Type | Description |
 |------|------|-------------|
-| `snippets` | `list[CodeSnippet]` | Current snippet only (single-step reveal) |
-| `step_number` | `int` | Current step in episode |
-| `total_snippets` | `int` | Total snippets in selected task |
+| `snippets` | `list[CodeSnippet]` | Current snippet only |
+| `step_number` | `int` | Current step in the episode |
+| `total_snippets` | `int` | Total snippets in the selected task |
 | `task_name` | `str` | Active task |
-| `session_id` | `str \| null` | Session identifier from `/reset` |
+| `session_id` | `str \| null` | Session identifier returned by `/reset` |
 
 ### Action Space
 
@@ -50,20 +52,18 @@ The agent submits one `BugReport` for the current snippet and receives immediate
 | Task | Snippets | Languages | Description |
 |------|----------|-----------|-------------|
 | `easy` | 5 | Python | Obvious but realistic production bugs |
-| `medium` | 6 | Python | Subtle retries/cache/webhook issues |
-| `hard` | 14 | Python + JavaScript | Advanced regressions + no-bug traps (extra hard negatives) |
+| `medium` | 6 | Python | Subtler retries, cache-state, and webhook issues |
+| `hard` | 14 | Python + JavaScript | Advanced regressions, async issues, and no-bug traps |
 | `security` | 5 | Python | SQL injection, secrets, traversal, hashing, and secure no-bug validation |
 
-## What Makes This Environment Unique
+## What Makes It Strong
 
-- **Multi-language** - supports both Python and JavaScript snippets
-- **PR context** - each snippet includes a pull request description and intent, mimicking real code review
-- **Real-world review flow** - tasks cover pagination, auth refresh, checkout totals, retry logic, cache invalidation, webhooks, and security bugs
-- **Hard-mode ambiguity** - advanced tasks include realistic no-bug snippets and subtle regressions that reward reviewer restraint
-- **Fix suggestion scoring** - the agent must not only identify the bug but suggest a correct fix
-- **Security vulnerability detection** - dedicated task for real-world security bugs
-- **No-bug detection** - some snippets have no bug, so the agent must avoid false positives
-- **Partial credit grading** - 6 score levels rewarding nuanced understanding
+- **PR context** - each snippet includes intent, PR description, and failing-test context
+- **Real-world bug types** - pagination, auth refresh, cache leakage, async parsing, feature flags, retry loops, and security flaws
+- **No-bug cases** - the agent must avoid over-reporting
+- **Partial-credit grading** - scoring reflects bug type, severity, explanation quality, and fix quality
+- **Multi-language coverage** - benchmark includes both Python and JavaScript
+- **Session-based API** - episodes are isolated with `session_id`
 
 ## Reward Logic
 
@@ -92,13 +92,40 @@ The grader is deterministic and checks:
 | `POST` | `/step` | Submit action |
 | `GET` | `/state` | Current session state |
 | `GET` | `/tasks` | Task catalog |
-| `GET` | `/manifest` | Project/task schema summary for evaluators |
+| `GET` | `/manifest` | Project/task schema summary |
 | `GET` | `/report` | Detailed per-session analytics |
 | `GET` | `/sessions/summary` | Aggregate session summary |
 | `GET` | `/web` | Browser-friendly benchmark overview |
 | `POST` | `/grade` | Offline grading for full-task submission |
 
 `/reset` and `/step` support both query-style and JSON-body usage for evaluator compatibility.
+
+## Baseline Inference
+
+Run:
+
+```bash
+python inference.py
+```
+
+Environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `API_BASE_URL` | LLM endpoint, default provided |
+| `MODEL_NAME` | Model id, default provided |
+| `API_KEY` | Primary credential used by the injected LiteLLM/OpenAI-compatible proxy |
+| `HF_TOKEN` | Local fallback accepted by the baseline |
+| `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
+
+When `API_KEY` is present, `inference.py` initializes the OpenAI client with `base_url=API_BASE_URL` and sends proxy traffic through the injected LiteLLM-compatible endpoint.
+
+Expected logs include:
+- `[START] ...`
+- `[STEP] ...`
+- `[END] ...`
+
+The baseline writes `scores.json` with per-task scores in `[0.0, 1.0]`.
 
 ## Setup
 
@@ -118,83 +145,35 @@ docker build -t code-review-env .
 docker run -p 7860:7860 code-review-env
 ```
 
-## Baseline Inference
+## Validation And Tests
 
-```bash
-python inference.py
-```
-
-Environment variables:
-
-| Variable | Description |
-|----------|-------------|
-| `API_BASE_URL` | LLM endpoint (default present) |
-| `MODEL_NAME` | Model id (default present) |
-| `API_KEY` | Primary credential used by the injected LiteLLM/OpenAI-compatible proxy |
-| `HF_TOKEN` | Credential fallback accepted by the baseline for local use |
-| `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
-
-When `API_KEY` is present, `inference.py` uses the OpenAI client with `base_url=API_BASE_URL` and sends proxy traffic through the injected LiteLLM endpoint.
-
-Expected logs include:
-- `[START] ...`
-- `[STEP] ...`
-- `[END] ...`
-
-Baseline writes `scores.json` with per-task scores in `[0.0, 1.0]`.
-
-## Tests
+Run the tests:
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-Included:
-- `tests/test_api_contract.py`
-- `tests/test_grader_determinism.py`
-
-## Submission Validation
-
-Run preflight validator before submitting:
+Run the local submission validator:
 
 ```bash
 python validate_submission.py
 ```
 
-It checks:
-- task and dataset integrity
-- `openenv.yaml` alignment with real task counts
+This checks:
+- dataset/task integrity
+- `openenv.yaml` alignment with task counts
 - API contract behavior via `TestClient`
-- manifest endpoint availability and schema keys
-- baseline reproducibility and log format (`[START]`, `[STEP]`, `[END]`)
+- manifest and analytics endpoints
+- baseline reproducibility and log format
 - `scores.json` validity
-
-## CI
-
-GitHub Actions workflow: `.github/workflows/ci.yml`
-
-It runs on push and pull request and executes:
-1. dependency install
-2. unit tests
-3. `python validate_submission.py`
 
 ## Reproducibility
 
 Full runbook is documented in `REPRODUCIBILITY.md`.
 
-## Judge Quick Run
-
-```bash
-# 1) Start server
-uvicorn app:app --host 0.0.0.0 --port 7860
-
-# 2) Run tests
-python -m unittest discover -s tests -v
-
-# 3) Run preflight
-python validate_submission.py
-```
-
 ## Live Demo
 
-[https://huggingface.co/spaces/sid0706/code-review-env](https://huggingface.co/spaces/sid0706/code-review-env)
+- Space: [https://huggingface.co/spaces/sid0706/code-review-env](https://huggingface.co/spaces/sid0706/code-review-env)
+- Web UI: [https://sid0706-code-review-env.hf.space/web](https://sid0706-code-review-env.hf.space/web)
+- Tasks: [https://sid0706-code-review-env.hf.space/tasks](https://sid0706-code-review-env.hf.space/tasks)
+- Docs: [https://sid0706-code-review-env.hf.space/docs](https://sid0706-code-review-env.hf.space/docs)
