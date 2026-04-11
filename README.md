@@ -1,6 +1,5 @@
 ---
 title: IT Helpdesk Ops Env
-emoji: "🔧"
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -18,9 +17,11 @@ pinned: false
 
 # IT Helpdesk Operations Environment
 
-An OpenEnv benchmark for enterprise support and security workflows. The agent works through IT helpdesk and security operations tickets, gathers the right evidence, checks policy, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
+An OpenEnv benchmark for enterprise identity, endpoint, and security operations. The agent works through realistic internal IT tickets, gathers the right evidence, checks policy, reasons over org-wide state, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
 
 The environment is designed to evaluate operational AI agents rather than simple labelers. It rewards evidence gathering, policy awareness, safe escalation, and correct final resolution.
+
+The benchmark is specifically focused on the gap between routine IT helpdesk automation and high-risk enterprise security operations. It evaluates whether an agent can act like a cautious internal operations analyst inside a simulated company environment with approvals, license pools, incident state, compliance flags, and follow-on consequences.
 
 ## What The Agent Does
 
@@ -51,6 +52,16 @@ Each episode contains one tier of tickets. The agent sees one active ticket at a
 - choose one final action such as `unlock_account`, `assign_license`, `deny_request`, `revoke_access`, `escalate_security`, or `close_as_no_issue`
 
 The episode advances only after the active case is resolved, denied, escalated, or times out.
+
+Alongside the active ticket, the environment maintains a persistent simulated org state with:
+- license pools
+- pending approvals
+- active incidents
+- compliance flags
+- access-change history
+- audit logs
+
+Actions can update that state, and later tickets can surface dependency hints from those earlier changes.
 
 ## Observation Space
 

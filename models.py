@@ -63,6 +63,21 @@ class TicketItem(BaseModel):
     available_actions: List[ActionType] = Field(default_factory=list)
     gathered_facts: List[str] = Field(default_factory=list)
     action_history: List[str] = Field(default_factory=list)
+    correlation_tags: List[str] = Field(default_factory=list)
+    dependency_hints: List[str] = Field(default_factory=list)
+    related_services: List[str] = Field(default_factory=list)
+    sla_minutes: int = 0
+
+
+class OrgState(BaseModel):
+    license_inventory: dict[str, int] = Field(default_factory=dict)
+    pending_approvals: List[str] = Field(default_factory=list)
+    active_incidents: List[str] = Field(default_factory=list)
+    compliance_flags: List[str] = Field(default_factory=list)
+    access_changes: List[str] = Field(default_factory=list)
+    resolved_tickets: List[str] = Field(default_factory=list)
+    knowledge_refs: List[str] = Field(default_factory=list)
+    audit_log: List[str] = Field(default_factory=list)
 
 
 class ResolutionOperation(BaseModel):
@@ -96,6 +111,7 @@ class Observation(BaseModel):
     total_snippets: int
     task_name: str
     session_id: Optional[str] = None
+    org_state: OrgState = Field(default_factory=OrgState)
 
 
 class State(BaseModel):
@@ -111,6 +127,7 @@ class State(BaseModel):
     tickets_remaining: int
     snippets_remaining: int
     cumulative_score: float
+    org_state: OrgState = Field(default_factory=OrgState)
 
 
 class Reward(BaseModel):
@@ -119,6 +136,8 @@ class Reward(BaseModel):
     evidence_quality: float = 0.0
     resolution_quality: float = 0.0
     safety_quality: float = 0.0
+    timeliness_quality: float = 0.0
+    state_quality: float = 0.0
 
 
 class StepResult(BaseModel):

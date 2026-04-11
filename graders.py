@@ -1,4 +1,5 @@
 import re
+from difflib import SequenceMatcher
 from typing import Iterable
 
 from models import INVESTIGATION_ACTIONS, TERMINAL_ACTIONS, ResolutionOperation
@@ -26,8 +27,26 @@ def _term_score(text: str, terms: Iterable[str]) -> float:
     if not term_list:
         return 1.0
     normalized = _normalize(text)
-    hits = sum(1 for term in term_list if _normalize(term) in normalized)
-    return hits / len(term_list)
+    scores = []
+    for term in term_list:
+        normalized_term = _normalize(term)
+        if normalized_term in normalized:
+            scores.append(1.0)
+            continue
+        token_overlap = _coverage_score(re.findall(r"[a-z0-9_]+", normalized), re.findall(r"[a-z0-9_]+", normalized_term))
+        fuzzy_ratio = SequenceMatcher(None, normalized, normalized_term).ratio()
+        scores.append(max(token_overlap, fuzzy_ratio))
+    return sum(scores) / len(term_list)
+
+
+def _incident_correlation_score(case: dict, active_incidents: list[str]) -> float:
+    tags = case.get("correlation_tags", [])
+    if not tags:
+        return 0.0
+    for tag in tags:
+        if any(tag in incident for incident in active_incidents):
+            return 1.0
+    return 0.0
 
 
 def score_investigation(
@@ -35,7 +54,9 @@ def score_investigation(
     operation: ResolutionOperation,
     gathered_facts: list[str],
     action_history: list[str],
+    active_incidents: list[str] | None = None,
 ) -> dict:
+    active_incidents = active_incidents or []
     facts_by_action = case.get("facts_by_action", {})
     expected = case.get("expected_resolution", {})
     revealed_facts = facts_by_action.get(operation.action_type, [])
@@ -67,8 +88,9 @@ def score_investigation(
         reward = 0.35 if operation.action_type in good_actions else 0.2
         if operation.action_type in optional_actions and operation.action_type not in good_actions:
             reward = max(reward, 0.2)
+        correlation_bonus = 0.05 * _incident_correlation_score(case, active_incidents)
         return {
-            "reward": reward,
+            "reward": round(min(reward + correlation_bonus, 0.4), 2),
             "reason": "useful evidence gathered",
             "new_facts": newly_revealed,
             "evidence_quality": 1.0 if operation.action_type in good_actions else 0.7,
@@ -101,7 +123,9 @@ def score_resolution(
     operation: ResolutionOperation,
     gathered_facts: list[str],
     action_history: list[str],
+    active_incidents: list[str] | None = None,
 ) -> dict:
+    active_incidents = active_incidents or []
     expected = case.get("expected_resolution", {})
     required_facts = expected.get("required_facts", [])
     good_actions = expected.get("good_actions", [])
@@ -112,6 +136,7 @@ def score_resolution(
     workflow_quality = _coverage_score(action_history, good_actions)
     communication_quality = _term_score(resolution_text, customer_terms)
     safety_quality = 0.0 if operation.action_type in disallowed_actions else 1.0
+    incident_awareness = _incident_correlation_score(case, active_incidents)
 
     if operation.action_type not in TERMINAL_ACTIONS:
         return {
@@ -136,7 +161,13 @@ def score_resolution(
             "successful": False,
         }
 
-    resolution_quality = 0.55 + (0.2 * evidence_quality) + (0.15 * workflow_quality) + (0.1 * communication_quality)
+    resolution_quality = (
+        0.5
+        + (0.2 * evidence_quality)
+        + (0.12 * workflow_quality)
+        + (0.1 * communication_quality)
+        + (0.08 * incident_awareness)
+    )
     case_score = round(min(resolution_quality, 1.0), 2)
     reason = expected.get("reason", "correct resolution")
     return {
@@ -151,60 +182,24 @@ def score_resolution(
 
 
 def grade_task(task_name: str, operations: list[ResolutionOperation]) -> dict:
-    from tasks import TASKS
+    from env import HelpdeskOpsEnv
+    from models import Action
 
-    task = TASKS[task_name]
-    max_steps = int(task.get("config", {}).get("max_steps_per_case", 5))
+    env = HelpdeskOpsEnv(task_name=task_name)
+    env.reset()
     grouped: dict[str, list[ResolutionOperation]] = {}
     for operation in operations:
         grouped.setdefault(operation.case_id, []).append(operation)
 
-    trajectory = []
-    case_scores: list[float] = []
-    for case in task["cases"]:
-        case_operations = grouped.get(case["id"], [])
-        gathered_facts: list[str] = []
-        action_history: list[str] = []
-        case_score = 0.0
-        successful = False
-        reason = "no operations submitted for case"
-        for index, operation in enumerate(case_operations[:max_steps], start=1):
-            if operation.action_type in INVESTIGATION_ACTIONS:
-                result = score_investigation(case, operation, gathered_facts, action_history)
-                action_history.append(operation.action_type)
-                for fact in result["new_facts"]:
-                    if fact not in gathered_facts:
-                        gathered_facts.append(fact)
-                reason = result["reason"]
-                continue
-
-            result = score_resolution(case, operation, gathered_facts, action_history)
-            action_history.append(operation.action_type)
-            case_score = float(result["case_score"])
-            successful = bool(result["successful"])
-            reason = result["reason"]
+    while not env.state().done:
+        current_ticket = env.state().tickets[0]
+        case_operations = grouped.get(current_ticket.id, [])
+        if case_operations:
+            operation = case_operations.pop(0)
+        else:
             break
+        env.step(Action(operations=[operation]))
 
-        case_scores.append(round(case_score, 2))
-        trajectory.append(
-            {
-                "case_id": case["id"],
-                "steps_used": min(len(case_operations), max_steps),
-                "gathered_facts": gathered_facts,
-                "action_history": action_history,
-                "case_score": round(case_score, 2),
-                "successful": successful,
-                "reason": reason,
-            }
-        )
-
-    cumulative_score = round(sum(case_scores) / len(case_scores), 2) if case_scores else 0.0
-    return {
-        "task_name": task_name,
-        "done": True,
-        "attempted_cases": len(task["cases"]),
-        "total_cases": len(task["cases"]),
-        "cumulative_score": cumulative_score,
-        "resolution_accuracy": round(len([item for item in trajectory if item["successful"]]) / len(trajectory), 2) if trajectory else 0.0,
-        "trajectory": trajectory,
-    }
+    report = env.episode_report()
+    report["done"] = True
+    return report

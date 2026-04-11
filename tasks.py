@@ -54,6 +54,9 @@ def build_tasks() -> None:
                 "user_message": case.get("user_message", ""),
                 "visible_context": case.get("visible_context", []),
                 "available_actions": case.get("available_actions", []),
+                "correlation_tags": case.get("correlation_tags", []),
+                "related_services": case.get("related_services", []),
+                "sla_minutes": case.get("sla_minutes", 0),
                 "facts_by_action": case.get("facts_by_action", {}),
                 "expected_resolution": case.get("expected_resolution", {}),
             }

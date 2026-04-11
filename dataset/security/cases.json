@@ -6,6 +6,9 @@
     "department": "Security",
     "priority": "critical",
     "category": "account_compromise",
+    "correlation_tags": ["identity_takeover", "mfa_fatigue"],
+    "related_services": ["mfa_gateway", "source_control_access"],
+    "sla_minutes": 15,
     "user_message": "Engineering manager reports repeated MFA prompts they did not initiate.",
     "visible_context": [
       "Multiple MFA challenges were issued within five minutes.",
@@ -39,6 +42,9 @@
     "department": "Security",
     "priority": "critical",
     "category": "credential_exposure",
+    "correlation_tags": ["credential_exposure", "public_token_leak"],
+    "related_services": ["github_pat", "repo_secret_scanner"],
+    "sla_minutes": 15,
     "user_message": "A GitHub personal access token linked to a contractor account was detected in a public gist.",
     "visible_context": [
       "The secret scanner confirmed the token is syntactically valid.",
@@ -71,6 +77,9 @@
     "department": "Security",
     "priority": "high",
     "category": "offboarding",
+    "correlation_tags": ["offboarding_drift", "vendor_network_access"],
+    "related_services": ["vendor_vpn_access", "iam_drift_monitor"],
+    "sla_minutes": 30,
     "user_message": "A terminated contractor remains in the vendor VPN entitlement group.",
     "visible_context": [
       "Vendor VPN grants access into a restricted partner network segment.",
@@ -104,6 +113,9 @@
     "department": "Finance",
     "priority": "high",
     "category": "phishing",
+    "correlation_tags": ["identity_takeover", "phishing_response"],
+    "related_services": ["mail_gateway", "sign_in_risk"],
+    "sla_minutes": 20,
     "user_message": "I clicked a DocuSign email, typed my password, and then realized the sender looked wrong.",
     "visible_context": [
       "The user voluntarily reported the event within ten minutes.",
@@ -137,6 +149,9 @@
     "department": "Data Science",
     "priority": "critical",
     "category": "data_handling",
+    "correlation_tags": ["regulated_data_handling", "unsafe_export_request"],
+    "related_services": ["production_data_export", "data_handling_policy"],
+    "sla_minutes": 20,
     "user_message": "Please email me the full production export tonight on my personal Gmail because our VPN is unstable.",
     "visible_context": [
       "The request mentions urgency but no approved exception.",
@@ -169,6 +184,9 @@
     "department": "Security",
     "priority": "critical",
     "category": "credential_exposure",
+    "correlation_tags": ["credential_exposure", "internal_blast_radius"],
+    "related_services": ["production_service_token", "ci_troubleshooting_thread"],
+    "sla_minutes": 15,
     "user_message": "A production service token was pasted into an internal CI troubleshooting thread that is visible to a broad engineering channel.",
     "visible_context": [
       "The scanner marked the token as valid and currently active.",

@@ -6,6 +6,9 @@
     "department": "Security",
     "priority": "critical",
     "category": "offboarding",
+    "correlation_tags": ["offboarding_drift", "privileged_access_cleanup"],
+    "related_services": ["production_secrets_vault", "hri_sync"],
+    "sla_minutes": 30,
     "user_message": "Audit detected that a departed engineer still has access to the production secrets vault.",
     "visible_context": [
       "The employee termination date was yesterday.",
@@ -39,6 +42,9 @@
     "department": "Security",
     "priority": "critical",
     "category": "account_compromise",
+    "correlation_tags": ["identity_takeover", "mailbox_forwarding"],
+    "related_services": ["executive_mailbox", "risk_engine"],
+    "sla_minutes": 20,
     "user_message": "An executive mailbox rule was created to forward invoices externally. Please investigate.",
     "visible_context": [
       "This ticket originates from the SOC queue.",
@@ -72,6 +78,9 @@
     "department": "Platform Engineering",
     "priority": "high",
     "category": "endpoint_privilege",
+    "correlation_tags": ["unmanaged_endpoint_risk"],
+    "related_services": ["endpoint_management", "local_admin_policy"],
+    "sla_minutes": 60,
     "user_message": "My personally managed Linux workstation needs admin rights so I can test a kernel tracing tool.",
     "visible_context": [
       "Personally managed devices are not enrolled in endpoint management.",
@@ -104,6 +113,9 @@
     "department": "Data Science",
     "priority": "high",
     "category": "sensitive_data_access",
+    "correlation_tags": ["prod_data_access", "approval_gap"],
+    "related_services": ["prod_analytics_cluster", "change_management"],
+    "sla_minutes": 45,
     "user_message": "I need direct access to the production analytics cluster for an urgent dashboard issue.",
     "visible_context": [
       "The request references urgency but includes no ticket from Change Management.",
@@ -136,6 +148,9 @@
     "department": "Security",
     "priority": "high",
     "category": "offboarding",
+    "correlation_tags": ["offboarding_drift", "collaboration_tool_cleanup"],
+    "related_services": ["slack_enterprise_grid", "quarterly_access_review"],
+    "sla_minutes": 60,
     "user_message": "Quarterly review found a contractor account that has been inactive for 47 days but still belongs to the executive-announcements Slack channel.",
     "visible_context": [
       "Executive-announcements is a restricted communications channel.",
@@ -169,6 +184,9 @@
     "department": "Legal",
     "priority": "medium",
     "category": "identity",
+    "correlation_tags": ["stale_credential_loop"],
+    "related_services": ["mobile_mail_profile", "directory_account"],
+    "sla_minutes": 120,
     "user_message": "My account keeps getting locked every hour even after password resets.",
     "visible_context": [
       "The user recently changed their password.",
@@ -205,6 +223,9 @@
     "department": "Platform Engineering",
     "priority": "high",
     "category": "privileged_access",
+    "correlation_tags": ["break_glass_abuse", "privileged_access_request"],
+    "related_services": ["github_org_admin", "incident_bridge"],
+    "sla_minutes": 45,
     "user_message": "An engineer asked for GitHub org admin because they want to quickly edit team memberships during an incident bridge.",
     "visible_context": [
       "The request cites urgency but includes no approval artifact.",

@@ -137,6 +137,14 @@ def manifest():
         "action_types": list(ACTION_TYPES),
         "priorities": list(PRIORITIES),
         "baseline_scores": baseline_scores,
+        "stateful_features": [
+            "persistent_org_state",
+            "license_inventory",
+            "incident_correlation",
+            "approval_and_policy_checks",
+            "compliance_flags",
+            "action_side_effects",
+        ],
         "extra_endpoints": ["/tasks", "/grade", "/report", "/sessions/summary", "/health", "/manifest", "/web"],
     }
 

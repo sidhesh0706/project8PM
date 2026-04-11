@@ -119,10 +119,14 @@ def _investigation_for(ticket) -> str:
         return "review_login_risk"
     if any(term in title for term in ("personal access token", "token exposed", "public gist")):
         return "lookup_user"
+    if any(term in title for term in ("service token", "ci troubleshooting", "troubleshooting thread")):
+        return "lookup_user"
     if any(term in title for term in ("password", "locked", "account", "onboarding")):
         return "lookup_user"
     if any(term in title for term in ("terminated", "offboarding", "contractor", "access review", "role transfer", "department transfer", "moved from")):
         return "lookup_user"
+    if any(term in title for term in ("github org admin", "break-glass", "incident bridge")):
+        return "check_access_policy"
     if any(term in title for term in ("policy", "approval", "license", "access", "export", "prod", "mailbox", "data")):
         return "check_access_policy"
     if any(term in title for term in ("admin", "device", "laptop", "workstation", "kernel", "vpn")):
@@ -185,7 +189,13 @@ def _heuristic_action(ticket) -> Action:
         target = "false_positive"
         note = "The travel event is expected and matches approved itinerary information."
         message = "This alert aligns with your approved travel, so no further action is needed right now."
-    elif "cannot be sent to personal email" in facts or "cannot receive elevated enterprise access" in facts or "require director approval" in facts or "requires an approved change record" in facts:
+    elif (
+        "cannot be sent to personal email" in facts
+        or "cannot receive elevated enterprise access" in facts
+        or "require director approval" in facts
+        or "requires an approved change record" in facts
+        or "requires manager approval plus a break-glass ticket" in facts
+    ):
         action_type = "deny_request"
         target = "policy_blocked_request"
         note = "The request is blocked by policy and cannot be safely granted."

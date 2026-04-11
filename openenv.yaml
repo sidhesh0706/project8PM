@@ -27,6 +27,9 @@ observation_space:
     - name: session_id
       type: string|null
       description: Session identifier returned by /reset and reused for /step and /state.
+    - name: org_state
+      type: OrgState
+      description: Persistent simulated enterprise state including incidents, approvals, licenses, compliance flags, and audit history.
 
 action_space:
   type: object
@@ -96,7 +99,7 @@ reward:
   scoring_rules:
     - evidence gathering receives partial credit when the action reveals relevant facts.
     - repeated or irrelevant investigations receive little to no credit.
-    - correct final resolution with good evidence coverage and clear communication scores highest.
+    - correct final resolution with good evidence coverage, timely handling, and healthy downstream state scores highest.
     - unsafe or policy-violating final actions score poorly.
 
 api:
