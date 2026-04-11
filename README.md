@@ -6,7 +6,7 @@ colorTo: green
 sdk: docker
 app_port: 7860
 base_path: /web
-short_description: Multi-step IT helpdesk and security operations benchmark for OpenEnv agents.
+short_description: Multi-step IT helpdesk and security benchmark.
 tags:
   - openenv
   - reinforcement-learning
