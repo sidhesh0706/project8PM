@@ -2,6 +2,7 @@ import json
 import os
 import re
 import sys
+from pathlib import Path
 from typing import Any, List, Optional
 
 from dotenv import load_dotenv
@@ -12,12 +13,14 @@ from models import ACTION_TYPES, Action, INVESTIGATION_ACTIONS, ResolutionOperat
 
 load_dotenv()
 
+REPO_ROOT = Path(__file__).resolve().parent
 API_BASE_URL = os.getenv("API_BASE_URL", "https://api.groq.com/openai/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "llama-3.3-70b-versatile")
 API_KEY = os.getenv("API_KEY") or os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 BENCHMARK = "it-helpdesk-ops-env"
 SUCCESS_SCORE_THRESHOLD = 0.6
+SCORES_PATH = REPO_ROOT / "scores.json"
 
 client = None
 if API_KEY:
@@ -347,7 +350,7 @@ if __name__ == "__main__":
         result = run_task(task_name)
         all_scores[task_name] = result["score"]
 
-    with open("scores.json", "w", encoding="utf-8") as file:
+    with SCORES_PATH.open("w", encoding="utf-8") as file:
         json.dump(all_scores, file, indent=2)
         file.flush()
 

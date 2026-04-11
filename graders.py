@@ -191,15 +191,18 @@ def grade_task(task_name: str, operations: list[ResolutionOperation]) -> dict:
     for operation in operations:
         grouped.setdefault(operation.case_id, []).append(operation)
 
+    replay_exhausted = False
     while not env.state().done:
         current_ticket = env.state().tickets[0]
         case_operations = grouped.get(current_ticket.id, [])
         if case_operations:
             operation = case_operations.pop(0)
         else:
+            replay_exhausted = True
             break
         env.step(Action(operations=[operation]))
 
     report = env.episode_report()
-    report["done"] = True
+    report["done"] = report["done"] and not replay_exhausted
+    report["fully_replayed"] = not replay_exhausted and report["tickets_remaining"] == 0
     return report

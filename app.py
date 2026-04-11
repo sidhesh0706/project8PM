@@ -1,5 +1,7 @@
 import json
+import os
 from pathlib import Path
+import time
 from uuid import uuid4
 
 from fastapi import Body, FastAPI, HTTPException
@@ -17,8 +19,12 @@ app = FastAPI(
 )
 
 envs: dict[str, HelpdeskOpsEnv] = {}
+env_access_times: dict[str, float] = {}
 TASK_NAMES = list(TASKS.keys())
-SCORES_PATH = Path("scores.json")
+REPO_ROOT = Path(__file__).resolve().parent
+SCORES_PATH = REPO_ROOT / "scores.json"
+WEB_TEMPLATE_PATH = REPO_ROOT / "server" / "web_template.html"
+SESSION_TTL_SECONDS = max(int(os.getenv("SESSION_TTL_SECONDS", "3600")), 0)
 
 
 def load_baseline_scores() -> dict[str, float] | None:
@@ -33,13 +39,31 @@ def load_baseline_scores() -> dict[str, float] | None:
     return {str(key): float(value) for key, value in data.items()}
 
 
+def _cleanup_expired_sessions() -> None:
+    if SESSION_TTL_SECONDS <= 0:
+        expired_ids = list(envs.keys())
+    else:
+        cutoff = time.time() - SESSION_TTL_SECONDS
+        expired_ids = [session_id for session_id, last_access in env_access_times.items() if last_access < cutoff]
+
+    for session_id in expired_ids:
+        envs.pop(session_id, None)
+        env_access_times.pop(session_id, None)
+
+
+def _touch_session(session_id: str) -> None:
+    env_access_times[session_id] = time.time()
+
+
 def get_env(session_id: str) -> HelpdeskOpsEnv:
+    _cleanup_expired_sessions()
     env = envs.get(session_id)
     if env is None:
         raise HTTPException(
             status_code=400,
             detail="Unknown session_id. Call /reset first to start a new episode.",
         )
+    _touch_session(session_id)
     return env
 
 
@@ -61,6 +85,7 @@ def health():
 
 @app.post("/reset", response_model=Observation)
 def reset(task_name: str = "easy", payload: ResetRequest | None = Body(default=None)):
+    _cleanup_expired_sessions()
     selected_task = payload.task_name if payload is not None else task_name
     if selected_task not in TASKS:
         raise HTTPException(
@@ -70,24 +95,36 @@ def reset(task_name: str = "easy", payload: ResetRequest | None = Body(default=N
     session_id = uuid4().hex
     env = HelpdeskOpsEnv(task_name=selected_task, session_id=session_id)
     envs[session_id] = env
+    _touch_session(session_id)
     return env.reset()
 
 
 @app.post("/step", response_model=StepResult)
-def step(session_id: str | None = None, payload: dict | None = Body(default=None)):
+def step(session_id: str | None = None, payload: StepRequest | None = Body(default=None)):
     resolved_session_id = session_id
     resolved_action: Action | None = None
 
     if payload is not None:
-        parsed = StepRequest(**payload)
-        if parsed.session_id:
-            resolved_session_id = parsed.session_id
-        if parsed.operations is not None:
-            resolved_action = Action(operations=parsed.operations)
-        elif parsed.action is not None:
-            resolved_action = parsed.action
+        if payload.session_id:
+            resolved_session_id = payload.session_id
+        if payload.operations is not None:
+            resolved_action = Action(operations=payload.operations)
+        elif payload.action is not None:
+            resolved_action = payload.action
+        elif payload.case_id and payload.action_type is not None:
+            resolved_action = Action(
+                operations=[
+                    {
+                        "case_id": payload.case_id,
+                        "action_type": payload.action_type,
+                        "target": payload.target,
+                        "note": payload.note,
+                        "customer_message": payload.customer_message,
+                    }
+                ]
+            )
         else:
-            resolved_action = Action(**payload)
+            resolved_action = None
 
     if resolved_session_id is None:
         raise HTTPException(
@@ -156,6 +193,7 @@ def report(session_id: str):
 
 @app.get("/sessions/summary")
 def sessions_summary():
+    _cleanup_expired_sessions()
     reports = [env.episode_report() for env in envs.values()]
     completed = [report for report in reports if report["done"]]
     average = round(
@@ -204,166 +242,12 @@ def web_view():
         """
     )
 
-    return f"""
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-        <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>IT Helpdesk Operations Environment</title>
-        <style>
-            :root {{
-                --bg: #08111d;
-                --panel: rgba(13, 24, 43, 0.86);
-                --border: rgba(255, 255, 255, 0.1);
-                --text: #eef4ff;
-                --muted: #aab7d3;
-                --accent: #7cf0c9;
-                --accent-2: #7da9ff;
-            }}
-            * {{ box-sizing: border-box; }}
-            body {{
-                margin: 0;
-                color: var(--text);
-                font-family: "Segoe UI", system-ui, sans-serif;
-                background:
-                    radial-gradient(circle at top left, rgba(124, 240, 201, 0.16), transparent 30%),
-                    radial-gradient(circle at top right, rgba(125, 169, 255, 0.18), transparent 28%),
-                    linear-gradient(180deg, #08111d 0%, #0f1727 100%);
-            }}
-            .wrap {{
-                max-width: 1080px;
-                margin: 0 auto;
-                padding: 40px 20px 56px;
-            }}
-            .hero {{
-                border: 1px solid var(--border);
-                border-radius: 26px;
-                padding: 28px;
-                background: linear-gradient(180deg, rgba(13, 24, 43, 0.95), rgba(9, 17, 29, 0.92));
-                box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
-            }}
-            .eyebrow {{
-                display: inline-block;
-                padding: 6px 12px;
-                border-radius: 999px;
-                background: rgba(124, 240, 201, 0.12);
-                color: var(--accent);
-                font-size: 12px;
-                letter-spacing: 0.08em;
-                text-transform: uppercase;
-            }}
-            h1 {{
-                margin: 16px 0 10px;
-                font-size: clamp(34px, 6vw, 56px);
-                line-height: 1.02;
-            }}
-            .lede {{
-                max-width: 760px;
-                color: var(--muted);
-                font-size: 18px;
-                line-height: 1.65;
-            }}
-            .actions {{
-                display: flex;
-                flex-wrap: wrap;
-                gap: 12px;
-                margin-top: 24px;
-            }}
-            .actions a {{
-                text-decoration: none;
-                color: var(--text);
-                background: rgba(255, 255, 255, 0.04);
-                border: 1px solid var(--border);
-                padding: 12px 16px;
-                border-radius: 14px;
-            }}
-            .actions a.primary {{
-                color: #08111d;
-                font-weight: 700;
-                background: linear-gradient(135deg, var(--accent), var(--accent-2));
-            }}
-            .grid {{
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
-                gap: 16px;
-                margin-top: 28px;
-            }}
-            .card {{
-                padding: 18px;
-                border-radius: 18px;
-                background: var(--panel);
-                border: 1px solid var(--border);
-            }}
-            .card p {{
-                color: var(--muted);
-                line-height: 1.55;
-                min-height: 92px;
-            }}
-            .meta {{
-                margin-top: 14px;
-                color: var(--accent);
-                font-size: 14px;
-            }}
-            .footer {{
-                margin-top: 24px;
-                color: var(--muted);
-            }}
-            .section {{
-                margin-top: 28px;
-                padding: 20px;
-                border-radius: 18px;
-                background: var(--panel);
-                border: 1px solid var(--border);
-            }}
-            ul {{
-                margin: 12px 0 0;
-                padding-left: 18px;
-                color: var(--muted);
-                line-height: 1.7;
-            }}
-            code {{
-                background: rgba(255, 255, 255, 0.06);
-                padding: 2px 6px;
-                border-radius: 8px;
-            }}
-        </style>
-    </head>
-    <body>
-        <main class="wrap">
-            <section class="hero">
-                <span class="eyebrow">OpenEnv Benchmark</span>
-                <h1>IT Helpdesk Operations Environment</h1>
-                <p class="lede">
-                    A multi-step benchmark for operational AI agents. Each episode contains helpdesk or
-                    security tickets that require evidence gathering, policy checks, and a safe final action
-                    such as unlock, revoke, deny, or escalate.
-                </p>
-                <div class="actions">
-                    <a class="primary" href="/docs">Open API Docs</a>
-                    <a href="/tasks">Task Catalog</a>
-                    <a href="/manifest">Manifest</a>
-                    <a href="/sessions/summary">Session Summary</a>
-                    <a href="/health">Health</a>
-                </div>
-            </section>
-            <section class="grid">{cards}</section>
-            <section class="section">
-                <h2>Agent Workflow</h2>
-                <ul>{workflow}</ul>
-            </section>
-            <section class="section">
-                <h2>Why This Benchmark Is Useful</h2>
-                <ul>{highlights}</ul>
-            </section>
-            <p class="footer">
-                Start with <code>POST /reset?task_name=easy</code>, inspect the active ticket, then send
-                a single operation to <code>POST /step</code> until the case is resolved or escalated.
-            </p>
-        </main>
-    </body>
-    </html>
-    """
+    template = WEB_TEMPLATE_PATH.read_text(encoding="utf-8")
+    return (
+        template.replace("__CARDS__", cards)
+        .replace("__WORKFLOW__", workflow)
+        .replace("__HIGHLIGHTS__", highlights)
+    )
 
 
 @app.post("/grade")
@@ -373,7 +257,9 @@ def grade(action: Action, task_name: str = "easy"):
             status_code=400,
             detail=f"Unknown task '{task_name}'. Choose from: {', '.join(TASK_NAMES)}",
         )
-    return grade_task(task_name, action.operations)
+    report = grade_task(task_name, action.operations)
+    report.setdefault("fully_replayed", False)
+    return report
 
 
 if __name__ == "__main__":

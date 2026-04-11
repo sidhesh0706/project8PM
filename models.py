@@ -100,6 +100,11 @@ class StepRequest(BaseModel):
     session_id: Optional[str] = None
     operations: Optional[List[ResolutionOperation]] = None
     action: Optional[Action] = None
+    case_id: Optional[str] = None
+    action_type: Optional[ActionType] = None
+    target: str = ""
+    note: str = ""
+    customer_message: str = ""
 
 
 class Observation(BaseModel):

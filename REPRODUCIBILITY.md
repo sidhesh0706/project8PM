@@ -33,6 +33,7 @@ Expected output includes machine-readable markers:
 - `[END] ...`
 
 Baseline writes `scores.json` with one score per task.
+The output file is written to the repository root even if the command is launched from another working directory.
 
 ## 5) Run Preflight Validator
 
@@ -50,3 +51,4 @@ Validation status: PASSED
 
 - Baseline uses `API_KEY` or `HF_TOKEN` when provided.
 - Without credentials, baseline falls back to deterministic heuristic action selection.
+- Live sessions expire automatically after one hour of inactivity by default.
