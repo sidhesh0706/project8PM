@@ -1,10 +1,15 @@
 import json
 from pathlib import Path
 
+from models import ACTION_TYPES, INVESTIGATION_ACTIONS, TERMINAL_ACTIONS
 
-DATASET_DIR = Path("dataset")
+REPO_ROOT = Path(__file__).resolve().parent
+DATASET_DIR = REPO_ROOT / "dataset"
 TASKS: dict[str, dict] = {}
 TASK_ORDER = ("easy", "medium", "hard", "security")
+VALID_ACTIONS = set(ACTION_TYPES)
+VALID_INVESTIGATION_ACTIONS = set(INVESTIGATION_ACTIONS)
+VALID_TERMINAL_ACTIONS = set(TERMINAL_ACTIONS)
 
 
 def _read_json(path: Path, default):
@@ -14,6 +19,44 @@ def _read_json(path: Path, default):
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return default
+
+
+def _validate_case(case: dict, seen_ids: set[str], tier_name: str) -> None:
+    case_id = case.get("id")
+    if case_id in seen_ids:
+        raise ValueError(f"Duplicate case id '{case_id}' found in task '{tier_name}'.")
+
+    available_actions = case.get("available_actions", [])
+    invalid_available = sorted(set(available_actions) - VALID_ACTIONS)
+    if invalid_available:
+        raise ValueError(
+            f"Task '{tier_name}' case '{case_id}' contains invalid available_actions: {', '.join(invalid_available)}"
+        )
+
+    expected = case.get("expected_resolution", {})
+    expected_action = expected.get("action_type")
+    if expected_action is not None and expected_action not in VALID_TERMINAL_ACTIONS:
+        raise ValueError(
+            f"Task '{tier_name}' case '{case_id}' uses invalid terminal action '{expected_action}' in expected_resolution."
+        )
+    if expected_action is not None and expected_action not in available_actions:
+        raise ValueError(
+            f"Task '{tier_name}' case '{case_id}' expected action '{expected_action}' is not listed in available_actions."
+        )
+
+    for field_name in ("good_actions", "optional_actions", "disallowed_actions"):
+        invalid_actions = sorted(set(expected.get(field_name, [])) - VALID_ACTIONS)
+        if invalid_actions:
+            raise ValueError(
+                f"Task '{tier_name}' case '{case_id}' contains invalid {field_name}: {', '.join(invalid_actions)}"
+            )
+
+    facts_by_action = case.get("facts_by_action", {})
+    invalid_fact_actions = sorted(set(facts_by_action) - VALID_INVESTIGATION_ACTIONS)
+    if invalid_fact_actions:
+        raise ValueError(
+            f"Task '{tier_name}' case '{case_id}' defines facts for non-investigation actions: {', '.join(invalid_fact_actions)}"
+        )
 
 
 def build_tasks() -> None:
@@ -41,9 +84,12 @@ def build_tasks() -> None:
         )
 
         normalized_cases = []
+        seen_ids: set[str] = set()
         for case in cases:
             if not case.get("id") or not case.get("title"):
                 continue
+            _validate_case(case, seen_ids, tier_name)
+            seen_ids.add(case["id"])
             normalized_case = {
                 "id": case["id"],
                 "title": case["title"],

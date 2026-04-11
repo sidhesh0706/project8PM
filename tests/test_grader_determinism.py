@@ -50,6 +50,25 @@ class TestGraderDeterminism(unittest.TestCase):
         self.assertEqual(first["cumulative_score"], second["cumulative_score"])
         self.assertEqual(first["trajectory"], second["trajectory"])
 
+    def test_grade_task_marks_incomplete_replay(self) -> None:
+        case = TASKS["easy"]["cases"][0]
+        report = grade_task(
+            "easy",
+            [
+                ResolutionOperation(
+                    case_id=case["id"],
+                    action_type="lookup_user",
+                    target="account",
+                    note="Initial account lookup.",
+                    customer_message="Checking the account details first.",
+                )
+            ],
+        )
+        self.assertFalse(report["done"])
+        self.assertFalse(report["fully_replayed"])
+        self.assertEqual(report["attempted_cases"], 0)
+        self.assertGreater(report["tickets_remaining"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

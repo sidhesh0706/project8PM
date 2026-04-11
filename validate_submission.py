@@ -151,6 +151,25 @@ def validate_api_runtime() -> None:
     assert_true("task_counts" in manifest_json, "/manifest returns task_counts")
     assert_true("action_types" in manifest_json, "/manifest returns action_types")
 
+    grade_resp = client.post(
+        "/grade?task_name=easy",
+        json={
+            "operations": [
+                {
+                    "case_id": first_ticket_id,
+                    "action_type": "lookup_user",
+                    "target": "account",
+                    "note": "Validation replay operation.",
+                    "customer_message": "Checking the account details now.",
+                }
+            ]
+        },
+    )
+    assert_true(grade_resp.status_code == 200, "POST /grade returns 200")
+    grade_json = grade_resp.json()
+    assert_true("fully_replayed" in grade_json, "/grade returns fully_replayed")
+    assert_true(grade_json["done"] is False, "/grade reports incomplete replay honestly")
+
 
 def validate_baseline() -> None:
     env = os.environ.copy()

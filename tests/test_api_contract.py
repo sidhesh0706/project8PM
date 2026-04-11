@@ -63,6 +63,73 @@ class TestAPIContract(unittest.TestCase):
         self.assertEqual(manifest.status_code, 200)
         self.assertIn("task_counts", manifest.json())
 
+    def test_step_validation_errors(self) -> None:
+        invalid_action = self.client.post(
+            "/step",
+            json={
+                "session_id": "missing",
+                "operations": [
+                    {
+                        "case_id": "e1",
+                        "action_type": "not_real",
+                        "target": "account",
+                        "note": "bad action",
+                        "customer_message": "bad action",
+                    }
+                ],
+            },
+        )
+        self.assertEqual(invalid_action.status_code, 422)
+
+        invalid_operations = self.client.post("/step", json={"operations": "bad"})
+        self.assertEqual(invalid_operations.status_code, 422)
+
+        missing_operations = self.client.post("/step", json={"session_id": "missing"})
+        self.assertEqual(missing_operations.status_code, 422)
+
+    def test_step_rejects_wrong_case_id(self) -> None:
+        reset = self.client.post("/reset", json={"task_name": "easy"})
+        session_id = reset.json()["session_id"]
+
+        step = self.client.post(
+            "/step",
+            json={
+                "session_id": session_id,
+                "operations": [
+                    {
+                        "case_id": "wrong-case",
+                        "action_type": "lookup_user",
+                        "target": "account",
+                        "note": "wrong case",
+                        "customer_message": "wrong case",
+                    }
+                ],
+            },
+        )
+        self.assertEqual(step.status_code, 400)
+        self.assertIn("active case", step.json()["detail"])
+
+    def test_grade_reports_incomplete_replay(self) -> None:
+        response = self.client.post(
+            "/grade?task_name=easy",
+            json={
+                "operations": [
+                    {
+                        "case_id": "e1",
+                        "action_type": "lookup_user",
+                        "target": "account",
+                        "note": "Initial account lookup.",
+                        "customer_message": "Checking the account details first.",
+                    }
+                ]
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertFalse(payload["done"])
+        self.assertFalse(payload["fully_replayed"])
+        self.assertGreater(payload["tickets_remaining"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()
