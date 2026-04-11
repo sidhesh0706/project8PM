@@ -1,9 +1,18 @@
 ---
 title: IT Helpdesk Ops Env
-emoji: "support"
+emoji: "🛠️"
 colorFrom: blue
 colorTo: green
 sdk: docker
+app_port: 7860
+base_path: /web
+short_description: Multi-step IT helpdesk and security operations benchmark for OpenEnv agents.
+tags:
+  - openenv
+  - reinforcement-learning
+  - agents
+  - security
+  - helpdesk
 pinned: false
 ---
 
@@ -12,6 +21,15 @@ pinned: false
 An OpenEnv benchmark for enterprise support and security workflows. The agent works through IT helpdesk and security operations tickets, gathers the right evidence, checks policy, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
 
 The environment is designed to evaluate operational AI agents rather than simple labelers. It rewards evidence gathering, policy awareness, safe escalation, and correct final resolution.
+
+## What The Agent Does
+
+For each ticket, the agent must:
+1. inspect the visible ticket context
+2. choose an information-gathering action when evidence is incomplete
+3. interpret policy, identity, device, or risk signals
+4. decide whether to resolve, deny, revoke, or escalate
+5. communicate the outcome clearly
 
 ## Why This Benchmark Matters
 
@@ -28,6 +46,7 @@ Those are the behaviors this environment measures.
 
 Each episode contains one tier of tickets. The agent sees one active ticket at a time and can:
 - investigate with actions like `lookup_user`, `lookup_device`, `check_access_policy`, or `review_login_risk`
+- consult knowledge-base style guidance with `search_kb`
 - gather ticket-specific facts revealed by those actions
 - choose one final action such as `unlock_account`, `assign_license`, `deny_request`, `revoke_access`, `escalate_security`, or `close_as_no_issue`
 
@@ -91,6 +110,17 @@ Supported `action_type` values:
 | `hard` | 6 | Offboarding failures, probable compromise, unmanaged devices, production data access |
 | `security` | 5 | MFA fatigue, leaked tokens, phishing, terminated access, unsafe data export |
 
+## Operational Coverage
+
+The scenarios cover:
+- identity recovery and lockouts
+- VPN and managed device issues
+- SaaS access and license assignment
+- policy-controlled access requests
+- offboarding drift and entitlement cleanup
+- compromise indicators such as phishing, MFA fatigue, and suspicious sign-ins
+- regulated data-handling violations
+
 ## Reward Logic
 
 Rewards stay in `[0.0, 1.0]` and provide partial credit:
@@ -104,6 +134,8 @@ The grader is deterministic and tracks:
 - resolution quality
 - safety quality
 - final case success
+
+That means the benchmark rewards not just the final answer, but also whether the agent used the right evidence path before acting.
 
 ## API Endpoints
 

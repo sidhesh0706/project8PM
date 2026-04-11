@@ -140,10 +140,13 @@
       "Department changes sync overnight unless manually expedited.",
       "Payroll dashboard access is managed through a role-mapping automation."
     ],
-    "available_actions": ["lookup_user", "check_access_policy", "grant_app_access", "escalate_it_ops", "close_as_no_issue"],
+    "available_actions": ["lookup_user", "search_kb", "check_access_policy", "grant_app_access", "escalate_it_ops", "close_as_no_issue"],
     "facts_by_action": {
       "lookup_user": [
         "HRIS reflects the new payroll role, but IAM still shows the previous recruiting role."
+      ],
+      "search_kb": [
+        "KB-284: IAM role sync after People Operations transfers can lag until the nightly job; urgent changes require Identity Operations."
       ],
       "check_access_policy": [
         "Payroll dashboard access should be granted automatically after IAM role sync, or manually expedited by Identity Operations."
@@ -155,7 +158,7 @@
       "customer_terms": ["role sync", "identity operations", "expedite"],
       "required_facts": ["HRIS reflects the new payroll role, but IAM still shows the previous recruiting role."],
       "good_actions": ["lookup_user", "check_access_policy"],
-      "optional_actions": [],
+      "optional_actions": ["search_kb"],
       "disallowed_actions": ["close_as_no_issue", "deny_request"],
       "reason": "The user is entitled, but the role-sync automation needs manual intervention."
     }

@@ -74,11 +74,14 @@
       "Device is managed in Intune.",
       "User still appears in the VPN entitlement group."
     ],
-    "available_actions": ["lookup_device", "lookup_user", "issue_vpn_profile", "escalate_it_ops", "close_as_no_issue"],
+    "available_actions": ["lookup_device", "lookup_user", "search_kb", "issue_vpn_profile", "escalate_it_ops", "close_as_no_issue"],
     "facts_by_action": {
       "lookup_device": [
         "Device status: compliant and recently reimaged.",
         "VPN profile package is missing from the current device assignment."
+      ],
+      "search_kb": [
+        "KB-1432: managed laptops may lose the corporate VPN profile after a reimage; reassigning the profile resolves the issue."
       ],
       "lookup_user": [
         "User is still a member of the standard corporate VPN group."
@@ -90,7 +93,7 @@
       "customer_terms": ["vpn", "profile", "sync"],
       "required_facts": ["VPN profile package is missing from the current device assignment."],
       "good_actions": ["lookup_device"],
-      "optional_actions": ["lookup_user"],
+      "optional_actions": ["lookup_user", "search_kb"],
       "disallowed_actions": ["grant_app_access", "close_as_no_issue"],
       "reason": "The laptop needs the VPN profile reassigned after the reimage."
     }

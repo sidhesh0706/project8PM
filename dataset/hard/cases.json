@@ -174,7 +174,7 @@
       "The user recently changed their password.",
       "Mobile device mail profiles can continue retrying with old credentials."
     ],
-    "available_actions": ["lookup_user", "review_login_risk", "unlock_account", "reset_password", "close_as_no_issue"],
+    "available_actions": ["lookup_user", "review_login_risk", "search_kb", "unlock_account", "reset_password", "close_as_no_issue"],
     "facts_by_action": {
       "lookup_user": [
         "Directory status: active account repeatedly locked after password change."
@@ -182,6 +182,9 @@
       "review_login_risk": [
         "Login events show repeated attempts from the user's old iPhone mail profile using stale credentials.",
         "No external risk signal or impossible travel is present."
+      ],
+      "search_kb": [
+        "KB-877: repeated lockouts after a password change are commonly caused by stale mobile mail profiles that continue retrying old credentials."
       ]
     },
     "expected_resolution": {
@@ -190,7 +193,7 @@
       "customer_terms": ["old device", "unlock", "mail profile"],
       "required_facts": ["Login events show repeated attempts from the user's old iPhone mail profile using stale credentials."],
       "good_actions": ["review_login_risk"],
-      "optional_actions": ["lookup_user"],
+      "optional_actions": ["lookup_user", "search_kb"],
       "disallowed_actions": ["escalate_security"],
       "reason": "The fix is to unlock the account and tell the user to update the stale mobile profile, not escalate a compromise."
     }

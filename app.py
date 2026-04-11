@@ -1,3 +1,5 @@
+import json
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import Body, FastAPI, HTTPException
@@ -16,6 +18,19 @@ app = FastAPI(
 
 envs: dict[str, HelpdeskOpsEnv] = {}
 TASK_NAMES = list(TASKS.keys())
+SCORES_PATH = Path("scores.json")
+
+
+def load_baseline_scores() -> dict[str, float] | None:
+    if not SCORES_PATH.exists():
+        return None
+    try:
+        data = json.loads(SCORES_PATH.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return {str(key): float(value) for key, value in data.items()}
 
 
 def get_env(session_id: str) -> HelpdeskOpsEnv:
@@ -111,14 +126,17 @@ def list_tasks():
 
 @app.get("/manifest")
 def manifest():
+    baseline_scores = load_baseline_scores()
     return {
         "name": "it-helpdesk-ops-env",
         "version": "2.0.0",
         "openenv_api": ["reset", "step", "state"],
         "task_names": TASK_NAMES,
         "task_counts": {name: len(info["cases"]) for name, info in TASKS.items()},
+        "domains": ["identity", "endpoint", "network", "saas_access", "security", "data_handling"],
         "action_types": list(ACTION_TYPES),
         "priorities": list(PRIORITIES),
+        "baseline_scores": baseline_scores,
         "extra_endpoints": ["/tasks", "/grade", "/report", "/sessions/summary", "/health", "/manifest", "/web"],
     }
 
@@ -149,15 +167,33 @@ def sessions_summary():
 
 @app.get("/web", response_class=HTMLResponse)
 def web_view():
+    baseline_scores = load_baseline_scores()
     cards = "".join(
         f"""
         <article class="card">
             <h2>{name.title()}</h2>
             <p>{info["description"]}</p>
             <div class="meta">Cases: {len(info["cases"])}</div>
+            <div class="meta">Baseline: {baseline_scores.get(name, 0.0):.2f}</div>
         </article>
         """
         for name, info in TASKS.items()
+    )
+
+    workflow = "".join(
+        """
+        <li><strong>Investigate</strong>: use identity, device, policy, knowledge-base, or login-risk lookups.</li>
+        <li><strong>Interpret</strong>: combine the revealed facts with the user ticket and escalation boundaries.</li>
+        <li><strong>Act safely</strong>: resolve, deny, revoke, or escalate with a clear customer-facing response.</li>
+        """
+    )
+
+    highlights = "".join(
+        """
+        <li>Multi-step operational reasoning instead of one-shot classification.</li>
+        <li>Deterministic grading with evidence quality, resolution quality, and safety quality.</li>
+        <li>Coverage across identity, endpoint, SaaS access, incident response, and data-handling cases.</li>
+        """
     )
 
     return f"""
@@ -265,6 +301,19 @@ def web_view():
                 margin-top: 24px;
                 color: var(--muted);
             }}
+            .section {{
+                margin-top: 28px;
+                padding: 20px;
+                border-radius: 18px;
+                background: var(--panel);
+                border: 1px solid var(--border);
+            }}
+            ul {{
+                margin: 12px 0 0;
+                padding-left: 18px;
+                color: var(--muted);
+                line-height: 1.7;
+            }}
             code {{
                 background: rgba(255, 255, 255, 0.06);
                 padding: 2px 6px;
@@ -291,6 +340,14 @@ def web_view():
                 </div>
             </section>
             <section class="grid">{cards}</section>
+            <section class="section">
+                <h2>Agent Workflow</h2>
+                <ul>{workflow}</ul>
+            </section>
+            <section class="section">
+                <h2>Why This Benchmark Is Useful</h2>
+                <ul>{highlights}</ul>
+            </section>
             <p class="footer">
                 Start with <code>POST /reset?task_name=easy</code>, inspect the active ticket, then send
                 a single operation to <code>POST /step</code> until the case is resolved or escalated.
