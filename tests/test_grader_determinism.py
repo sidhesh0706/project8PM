@@ -1,26 +1,54 @@
 import unittest
 
-from graders import grade_task, score_report
+from graders import grade_task, score_investigation, score_resolution
+from models import ResolutionOperation
 from tasks import TASKS
 
 
 class TestGraderDeterminism(unittest.TestCase):
-    def test_score_report_deterministic(self) -> None:
-        correct = TASKS["easy"]["answers"][0]
-        submission = correct.model_copy(deep=True)
-        submission.explanation = "Determinism probe explanation for exact replay checks."
-        submission.suggested_fix = correct.suggested_fix
+    def test_investigation_deterministic(self) -> None:
+        case = TASKS["easy"]["cases"][0]
+        operation = ResolutionOperation(
+            case_id=case["id"],
+            action_type="lookup_user",
+            target="account",
+            note="Check account status.",
+            customer_message="I'm checking the account details now.",
+        )
+        first = score_investigation(case, operation, [], [])
+        second = score_investigation(case, operation, [], [])
+        self.assertEqual(first, second)
 
-        first = score_report(submission, correct)
-        second = score_report(submission, correct)
+    def test_resolution_deterministic(self) -> None:
+        case = TASKS["security"]["cases"][0]
+        operation = ResolutionOperation(
+            case_id=case["id"],
+            action_type=case["expected_resolution"]["action_type"],
+            target=case["expected_resolution"]["target"],
+            note="Escalating due to confirmed compromise indicators.",
+            customer_message="I escalated this to the security team immediately.",
+        )
+        facts = case["expected_resolution"]["required_facts"]
+        history = case["expected_resolution"]["good_actions"]
+        first = score_resolution(case, operation, facts, history)
+        second = score_resolution(case, operation, facts, history)
         self.assertEqual(first, second)
 
     def test_grade_task_deterministic(self) -> None:
-        submitted = [r.model_copy(deep=True) for r in TASKS["hard"]["answers"]]
-        first = grade_task("hard", submitted)
-        second = grade_task("hard", submitted)
-        self.assertEqual(first["overall_score"], second["overall_score"])
-        self.assertEqual(first["breakdown"], second["breakdown"])
+        operations = [
+            ResolutionOperation(
+                case_id=case["id"],
+                action_type="lookup_user",
+                target=case["category"],
+                note="Initial account lookup.",
+                customer_message="Checking the account details first.",
+            )
+            for case in TASKS["hard"]["cases"]
+        ]
+        first = grade_task("hard", operations)
+        second = grade_task("hard", operations)
+        self.assertEqual(first["cumulative_score"], second["cumulative_score"])
+        self.assertEqual(first["trajectory"], second["trajectory"])
 
 
 if __name__ == "__main__":

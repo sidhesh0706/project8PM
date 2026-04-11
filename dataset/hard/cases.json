@@ -1,0 +1,198 @@
+[
+  {
+    "id": "h1",
+    "title": "Privileged production access still present after offboarding",
+    "requester": "Finance Audit Bot",
+    "department": "Security",
+    "priority": "critical",
+    "category": "offboarding",
+    "user_message": "Audit detected that a departed engineer still has access to the production secrets vault.",
+    "visible_context": [
+      "The employee termination date was yesterday.",
+      "Production vault access is considered privileged."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "revoke_access", "escalate_security", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "HRIS status: terminated yesterday.",
+        "Current entitlements still include production secrets vault access."
+      ],
+      "check_access_policy": [
+        "Offboarding policy: privileged access must be revoked immediately on termination and logged for audit."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "revoke_access",
+      "target": "production_secrets_vault",
+      "customer_terms": ["revoked", "offboarding", "audit"],
+      "required_facts": ["Current entitlements still include production secrets vault access."],
+      "good_actions": ["lookup_user", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "This is a real security exposure requiring immediate access revocation."
+    }
+  },
+  {
+    "id": "h2",
+    "title": "Executive mailbox forwarding rule created from unknown IP",
+    "requester": "SOC Alerting",
+    "department": "Security",
+    "priority": "critical",
+    "category": "account_compromise",
+    "user_message": "An executive mailbox rule was created to forward invoices externally. Please investigate.",
+    "visible_context": [
+      "This ticket originates from the SOC queue.",
+      "Mailbox forwarding to external domains is unusual for executives."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "escalate_security", "reset_password", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Executive account is active and normally signs in only from India and the US."
+      ],
+      "review_login_risk": [
+        "Mailbox rule was created from a new IP in another country 12 minutes ago.",
+        "The sign-in was not challenged by the user's usual MFA device."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "escalate_security",
+      "target": "soc_incident_response",
+      "customer_terms": ["security", "investigate", "mailbox rule"],
+      "required_facts": ["Mailbox rule was created from a new IP in another country 12 minutes ago."],
+      "good_actions": ["review_login_risk"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "This is a probable compromise and must be escalated to the security team."
+    }
+  },
+  {
+    "id": "h3",
+    "title": "Unmanaged device requesting admin rights for kernel tooling",
+    "requester": "Nikhil Sen",
+    "department": "Platform Engineering",
+    "priority": "high",
+    "category": "endpoint_privilege",
+    "user_message": "My personally managed Linux workstation needs admin rights so I can test a kernel tracing tool.",
+    "visible_context": [
+      "Personally managed devices are not enrolled in endpoint management.",
+      "Kernel tooling can expose host-level sensitive information."
+    ],
+    "available_actions": ["lookup_device", "check_access_policy", "deny_request", "escalate_it_ops", "grant_app_access"],
+    "facts_by_action": {
+      "lookup_device": [
+        "Device is not enrolled in endpoint management and has no compliance record."
+      ],
+      "check_access_policy": [
+        "Endpoint policy: unmanaged devices cannot receive elevated enterprise access or admin approval."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "deny_request",
+      "target": "local_admin",
+      "customer_terms": ["unmanaged", "policy", "cannot approve"],
+      "required_facts": ["Endpoint policy: unmanaged devices cannot receive elevated enterprise access or admin approval."],
+      "good_actions": ["lookup_device", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["grant_app_access"],
+      "reason": "The request is explicitly disallowed on unmanaged devices."
+    }
+  },
+  {
+    "id": "h4",
+    "title": "Production analytics access requested without change approval",
+    "requester": "Sonal Khurana",
+    "department": "Data Science",
+    "priority": "high",
+    "category": "sensitive_data_access",
+    "user_message": "I need direct access to the production analytics cluster for an urgent dashboard issue.",
+    "visible_context": [
+      "The request references urgency but includes no ticket from Change Management.",
+      "Production analytics contains customer PII."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "deny_request", "escalate_it_ops", "grant_app_access"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active and already has staging analytics access."
+      ],
+      "check_access_policy": [
+        "Policy: production analytics access requires an approved change record and data-owner signoff, neither of which is attached."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "deny_request",
+      "target": "prod_analytics_cluster",
+      "customer_terms": ["change record", "signoff", "cannot grant"],
+      "required_facts": ["Policy: production analytics access requires an approved change record and data-owner signoff, neither of which is attached."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["grant_app_access"],
+      "reason": "High-risk production data access should not be granted without required approvals."
+    }
+  },
+  {
+    "id": "h5",
+    "title": "Dormant contractor account still active in Slack Enterprise Grid",
+    "requester": "Quarterly Access Review",
+    "department": "Security",
+    "priority": "high",
+    "category": "offboarding",
+    "user_message": "Quarterly review found a contractor account that has been inactive for 47 days but still belongs to the executive-announcements Slack channel.",
+    "visible_context": [
+      "Executive-announcements is a restricted communications channel.",
+      "Inactive contractor accounts are a common audit finding."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "revoke_access", "close_as_no_issue", "escalate_security"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Contractor contract ended 41 days ago.",
+        "Slack membership still includes the executive-announcements workspace group."
+      ],
+      "check_access_policy": [
+        "Access review policy: expired contractors must be removed from all collaboration tools within 24 hours of contract end."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "revoke_access",
+      "target": "slack_enterprise_grid",
+      "customer_terms": ["removed", "contract ended", "access review"],
+      "required_facts": ["Contractor contract ended 41 days ago."],
+      "good_actions": ["lookup_user", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "Expired contractor access should be revoked immediately."
+    }
+  },
+  {
+    "id": "h6",
+    "title": "Repeated lockouts caused by an old mobile mail profile",
+    "requester": "Ananya Bose",
+    "department": "Legal",
+    "priority": "medium",
+    "category": "identity",
+    "user_message": "My account keeps getting locked every hour even after password resets.",
+    "visible_context": [
+      "The user recently changed their password.",
+      "Mobile device mail profiles can continue retrying with old credentials."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "unlock_account", "reset_password", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Directory status: active account repeatedly locked after password change."
+      ],
+      "review_login_risk": [
+        "Login events show repeated attempts from the user's old iPhone mail profile using stale credentials.",
+        "No external risk signal or impossible travel is present."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "unlock_account",
+      "target": "directory_account",
+      "customer_terms": ["old device", "unlock", "mail profile"],
+      "required_facts": ["Login events show repeated attempts from the user's old iPhone mail profile using stale credentials."],
+      "good_actions": ["review_login_risk"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["escalate_security"],
+      "reason": "The fix is to unlock the account and tell the user to update the stale mobile profile, not escalate a compromise."
+    }
+  }
+]

@@ -1,0 +1,165 @@
+[
+  {
+    "id": "s1",
+    "title": "MFA fatigue attack on engineering manager",
+    "requester": "Security Bot",
+    "department": "Security",
+    "priority": "critical",
+    "category": "account_compromise",
+    "user_message": "Engineering manager reports repeated MFA prompts they did not initiate.",
+    "visible_context": [
+      "Multiple MFA challenges were issued within five minutes.",
+      "Push fatigue is treated as a security event."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "escalate_security", "reset_password", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active with privileged repository access."
+      ],
+      "review_login_risk": [
+        "Risk engine shows repeated sign-in attempts from an unfamiliar ASN and device.",
+        "One MFA prompt was accidentally approved before the user contacted support."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "escalate_security",
+      "target": "incident_response",
+      "customer_terms": ["security", "mfa", "investigating"],
+      "required_facts": ["One MFA prompt was accidentally approved before the user contacted support."],
+      "good_actions": ["review_login_risk"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "This is an active account-takeover signal and must be escalated immediately."
+    }
+  },
+  {
+    "id": "s2",
+    "title": "Personal access token exposed in a public gist",
+    "requester": "Repo Secret Scanner",
+    "department": "Security",
+    "priority": "critical",
+    "category": "credential_exposure",
+    "user_message": "A GitHub personal access token linked to a contractor account was detected in a public gist.",
+    "visible_context": [
+      "The secret scanner confirmed the token is syntactically valid.",
+      "The token belongs to a contractor with repository read access."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "revoke_access", "escalate_security", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "The contractor account is still active and mapped to the leaked token."
+      ],
+      "review_login_risk": [
+        "Token was accessed from two IPs outside the contractor's normal country after publication."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "revoke_access",
+      "target": "github_pat",
+      "customer_terms": ["token", "revoked", "rotate"],
+      "required_facts": ["The contractor account is still active and mapped to the leaked token."],
+      "good_actions": ["lookup_user"],
+      "optional_actions": ["review_login_risk"],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "The secret must be revoked immediately before any longer investigation continues."
+    }
+  },
+  {
+    "id": "s3",
+    "title": "Terminated contractor still in vendor VPN group",
+    "requester": "IAM Drift Monitor",
+    "department": "Security",
+    "priority": "high",
+    "category": "offboarding",
+    "user_message": "A terminated contractor remains in the vendor VPN entitlement group.",
+    "visible_context": [
+      "Vendor VPN grants access into a restricted partner network segment.",
+      "The contract ended last week."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "revoke_access", "escalate_security", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Identity profile: contractor terminated seven days ago.",
+        "Group membership still includes vendor_vpn_access."
+      ],
+      "check_access_policy": [
+        "Security policy: terminated contractors must be removed from all network entitlements immediately."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "revoke_access",
+      "target": "vendor_vpn_access",
+      "customer_terms": ["removed", "terminated", "vpn"],
+      "required_facts": ["Group membership still includes vendor_vpn_access."],
+      "good_actions": ["lookup_user", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "This is an entitlement hygiene failure and access must be revoked."
+    }
+  },
+  {
+    "id": "s4",
+    "title": "Possible phishing report with credential entry",
+    "requester": "Vikram Jain",
+    "department": "Finance",
+    "priority": "high",
+    "category": "phishing",
+    "user_message": "I clicked a DocuSign email, typed my password, and then realized the sender looked wrong.",
+    "visible_context": [
+      "The user voluntarily reported the event within ten minutes.",
+      "Finance mailbox access is considered sensitive."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "escalate_security", "reset_password", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active with access to finance approvals."
+      ],
+      "review_login_risk": [
+        "Email domain is not an approved DocuSign sender.",
+        "A new suspicious sign-in attempt occurred three minutes after the credential entry."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "escalate_security",
+      "target": "phishing_response",
+      "customer_terms": ["security", "phishing", "containment"],
+      "required_facts": ["A new suspicious sign-in attempt occurred three minutes after the credential entry."],
+      "good_actions": ["review_login_risk"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "The user entered credentials into a phishing page and there is immediate suspicious activity."
+    }
+  },
+  {
+    "id": "s5",
+    "title": "Request to export production user data to a personal email",
+    "requester": "Kritika Singh",
+    "department": "Data Science",
+    "priority": "critical",
+    "category": "data_handling",
+    "user_message": "Please email me the full production export tonight on my personal Gmail because our VPN is unstable.",
+    "visible_context": [
+      "The request mentions urgency but no approved exception.",
+      "Production exports contain regulated customer data."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "deny_request", "escalate_security", "grant_app_access"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active and has internal analytics access, but no data-export exception."
+      ],
+      "check_access_policy": [
+        "Data handling policy: regulated production exports cannot be sent to personal email under any circumstance."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "deny_request",
+      "target": "production_data_export",
+      "customer_terms": ["policy", "personal email", "cannot send"],
+      "required_facts": ["Data handling policy: regulated production exports cannot be sent to personal email under any circumstance."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["grant_app_access"],
+      "reason": "This is an outright policy violation and must be denied."
+    }
+  }
+]

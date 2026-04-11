@@ -1,9 +1,4 @@
 {
-  "description": "6 moderately subtle review snippets around retries, cache state, and webhook parsing.",
-  "grader_defaults": {
-    "expected_term_limit": 5,
-    "fix_threshold": 0.35,
-    "pair_fix_threshold": 0.2,
-    "pair_explanation_threshold": 0.2
-  }
+  "description": "Moderately complex support cases involving policy checks, travel-risk interpretation, department transfers, and escalation boundaries.",
+  "max_steps_per_case": 5
 }

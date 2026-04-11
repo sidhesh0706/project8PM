@@ -1,104 +1,125 @@
 ---
-title: Code Review Env
-emoji: "🔍"
+title: IT Helpdesk Ops Env
+emoji: "🛠️"
 colorFrom: blue
 colorTo: green
 sdk: docker
 pinned: false
 ---
 
-# Code Review Environment
+# IT Helpdesk Operations Environment
 
-A real-world OpenEnv benchmark where an agent performs pull-request style code review on Python and JavaScript snippets. For each snippet, the agent must identify the bug type, assign severity, and suggest a fix.
+An OpenEnv benchmark for real-world enterprise support and security workflows. Instead of solving a toy task, the agent works through IT helpdesk and security operations tickets: it investigates the situation, gathers facts, checks policy, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
 
-This environment is designed to evaluate whether an agent can behave like a practical software reviewer rather than solve a toy task. It rewards accurate diagnosis, good reviewer restraint on no-bug snippets, and concrete fixes that address the real root cause.
+This is meant to evaluate operational AI agents, not just classifiers. The environment rewards evidence gathering, policy awareness, safe escalation, and correct final resolution.
 
 ## Why This Benchmark Matters
 
-Most coding benchmarks focus on generation. This one focuses on **review**:
-- understanding intent from PR-style context
-- spotting subtle logic, async, state, and security bugs
-- avoiding false positives on correct code
-- proposing fixes, not just naming the issue
+Most agent benchmarks stop at extraction or classification. Real IT and security teams need something harder:
+- understand a user ticket with incomplete context
+- decide whether more evidence is needed
+- distinguish routine support from real security risk
+- avoid unsafe actions
+- communicate the resolution clearly
 
-That makes it useful for evaluating real-world engineering agents that assist with pull requests, CI review, or code-quality workflows.
+Those are exactly the behaviors this environment measures.
 
-## Environment Design
+## Benchmark Design
 
-Each episode reveals **one snippet at a time**.
-The agent submits a `BugReport` for the current snippet and receives immediate reward and feedback.
+Each episode contains one tier of tickets. The agent sees one active ticket at a time and can:
+- investigate with actions like `lookup_user`, `lookup_device`, `check_access_policy`, or `review_login_risk`
+- gather ticket-specific facts revealed by those actions
+- choose one final action such as `unlock_account`, `assign_license`, `deny_request`, `revoke_access`, `escalate_security`, or `close_as_no_issue`
 
-### Observation Space
+The episode advances to the next case only after the current one is resolved, denied, escalated, or times out.
+
+## Observation Space
 
 | Field | Type | Description |
 |------|------|-------------|
-| `snippets` | `list[CodeSnippet]` | Current snippet only |
-| `step_number` | `int` | Current step in the episode |
-| `total_snippets` | `int` | Total snippets in the selected task |
-| `task_name` | `str` | Active task |
+| `tickets` | `list[TicketItem]` | The currently active ticket |
+| `step_number` | `int` | Global step count |
+| `current_case_step` | `int` | Step count within the current ticket |
+| `total_tickets` | `int` | Total tickets in the selected task |
+| `task_name` | `str` | Active task tier |
 | `session_id` | `str \| null` | Session identifier returned by `/reset` |
 
-### Action Space
+Each ticket includes:
+- requester and department
+- priority and category
+- user message
+- visible context
+- available actions
+- gathered facts
+- action history
+
+## Action Space
+
+The agent submits one `ResolutionOperation` at a time:
 
 | Field | Type | Description |
 |------|------|-------------|
-| `reports` | `list[BugReport]` | Submitted bug reports |
-| `bug_type` | `enum` | `off_by_one`, `wrong_variable`, `missing_return`, `mutable_default_arg`, `wrong_logic`, `missing_edge_case`, `incorrect_exception_handling`, `hardcoded_secret`, `no_bug` |
-| `severity` | `enum` | `low`, `medium`, `high` |
-| `suggested_fix` | `str` | Proposed correction |
+| `case_id` | `str` | Ticket identifier |
+| `action_type` | `enum` | Investigation or final action |
+| `target` | `str` | Resource, queue, or object affected |
+| `note` | `str` | Internal reasoning note |
+| `customer_message` | `str` | User-facing response |
+
+Supported `action_type` values:
+- `lookup_user`
+- `lookup_device`
+- `search_kb`
+- `check_access_policy`
+- `review_login_risk`
+- `reset_password`
+- `unlock_account`
+- `issue_vpn_profile`
+- `grant_app_access`
+- `assign_license`
+- `revoke_access`
+- `deny_request`
+- `escalate_security`
+- `escalate_it_ops`
+- `close_as_no_issue`
 
 ## Tasks
 
-| Task | Snippets | Languages | Description |
-|------|----------|-----------|-------------|
-| `easy` | 5 | Python | Obvious but realistic production bugs |
-| `medium` | 6 | Python | Subtler retries, cache-state, and webhook issues |
-| `hard` | 14 | Python + JavaScript | Advanced regressions, async issues, and no-bug traps |
-| `security` | 5 | Python | SQL injection, secrets, traversal, hashing, and secure no-bug validation |
-
-## What Makes It Strong
-
-- **PR context** - each snippet includes intent, PR description, and failing-test context
-- **Real-world bug types** - pagination, auth refresh, cache leakage, async parsing, feature flags, retry loops, and security flaws
-- **No-bug cases** - the agent must avoid over-reporting
-- **Partial-credit grading** - scoring reflects bug type, severity, explanation quality, and fix quality
-- **Multi-language coverage** - benchmark includes both Python and JavaScript
-- **Session-based API** - episodes are isolated with `session_id`
+| Task | Cases | Focus |
+|------|------:|-------|
+| `easy` | 5 | Password resets, lockouts, VPN restoration, approved access, licensing |
+| `medium` | 5 | Policy-aware access checks, travel false positives, contractor licensing, role-sync escalation |
+| `hard` | 6 | Offboarding failures, probable compromise, unmanaged devices, production data access |
+| `security` | 5 | MFA fatigue, leaked tokens, phishing, terminated access, unsafe data export |
 
 ## Reward Logic
 
-| Condition | Score |
-|----------|-------|
-| Correct bug type + correct severity + high-quality fix | `1.0` |
-| Correct bug type + correct severity + weak fix | `0.8` |
-| Correct bug type + non-exact severity + high-quality fix | `0.7` |
-| Correct bug type + non-exact severity + weak fix | `0.5` |
-| Wrong bug type | `0.2` |
-| Missed snippet / false positive on no-bug case | `0.0` |
+Rewards stay in `[0.0, 1.0]` and provide partial credit:
+- useful investigation steps receive credit when they reveal relevant facts
+- repeated or irrelevant investigation steps receive low or zero reward
+- the best scores require the correct final action plus good evidence coverage
+- unsafe or policy-violating actions score poorly
 
-The grader is deterministic and checks:
-- bug and severity correctness
-- explanation quality
-- fix quality
-- context grounding and specificity
+The grader is deterministic and tracks:
+- evidence quality
+- resolution quality
+- safety quality
+- final case success
 
 ## API Endpoints
 
 | Method | Endpoint | Purpose |
 |------|----------|---------|
-| `GET` | `/` | Service metadata / running status |
+| `GET` | `/` | Service metadata |
 | `GET` | `/health` | Health check |
-| `POST` | `/reset` | Start episode |
-| `POST` | `/step` | Submit action |
-| `GET` | `/state` | Current session state |
+| `POST` | `/reset` | Start a new episode |
+| `POST` | `/step` | Submit an investigation or resolution step |
+| `GET` | `/state` | Inspect current session state |
 | `GET` | `/tasks` | Task catalog |
-| `GET` | `/manifest` | Project/task schema summary |
-| `GET` | `/report` | Detailed per-session analytics |
-| `GET` | `/sessions/summary` | Aggregate session summary |
-| `GET` | `/web` | Browser-friendly benchmark overview |
-| `POST` | `/grade` | Offline grading for full-task submission |
-
-`/reset` and `/step` support both query-style and JSON-body usage for evaluator compatibility.
+| `GET` | `/manifest` | Task counts and schema summary |
+| `GET` | `/report` | Per-session case trajectory |
+| `GET` | `/sessions/summary` | Aggregate session metrics |
+| `GET` | `/web` | Browser-friendly overview |
+| `POST` | `/grade` | Offline grading via replay |
 
 ## Baseline Inference
 
@@ -108,28 +129,23 @@ Run:
 python inference.py
 ```
 
+The baseline:
+- uses the OpenAI client when `API_KEY` is present
+- routes through `API_BASE_URL`
+- emits strict `[START]`, `[STEP]`, and `[END]` logs
+- writes `scores.json`
+
 Environment variables:
 
 | Variable | Description |
 |----------|-------------|
 | `API_BASE_URL` | LLM endpoint, default provided |
 | `MODEL_NAME` | Model id, default provided |
-| `API_KEY` | Primary credential used by the injected LiteLLM/OpenAI-compatible proxy |
+| `API_KEY` | Primary proxy credential |
 | `HF_TOKEN` | Local fallback accepted by the baseline |
 | `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
 
-When `API_KEY` is present, `inference.py` initializes the OpenAI client with `base_url=API_BASE_URL` and sends proxy traffic through the injected LiteLLM-compatible endpoint.
-
-Expected logs include:
-- `[START] ...`
-- `[STEP] ...`
-- `[END] ...`
-
-The baseline writes `scores.json` with per-task scores in `[0.0, 1.0]`.
-
-## Setup
-
-### Local
+## Local Setup
 
 ```bash
 git clone https://github.com/sidhesh0706/project8PM
@@ -138,38 +154,30 @@ pip install -r requirements.txt
 uvicorn app:app --host 0.0.0.0 --port 7860
 ```
 
-### Docker
+## Docker
 
 ```bash
-docker build -t code-review-env .
-docker run -p 7860:7860 code-review-env
+docker build -t it-helpdesk-ops-env .
+docker run -p 7860:7860 it-helpdesk-ops-env
 ```
 
 ## Validation And Tests
 
-Run the tests:
+Run:
 
 ```bash
 python -m unittest discover -s tests -v
-```
-
-Run the local submission validator:
-
-```bash
 python validate_submission.py
 ```
 
-This checks:
-- dataset/task integrity
-- `openenv.yaml` alignment with task counts
-- API contract behavior via `TestClient`
-- manifest and analytics endpoints
-- baseline reproducibility and log format
+The local validator checks:
+- task/config integrity
+- `openenv.yaml` alignment
+- API contract behavior
+- manifest and report endpoints
+- baseline reproducibility
+- structured logging
 - `scores.json` validity
-
-## Reproducibility
-
-Full runbook is documented in `REPRODUCIBILITY.md`.
 
 ## Live Demo
 

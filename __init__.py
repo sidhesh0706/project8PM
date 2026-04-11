@@ -1,13 +1,15 @@
-from env import CodeReviewEnv
-from models import Action, BugReport, CodeSnippet, Observation, Reward, State, StepResult
+from client import HelpdeskEnvClient
+from env import HelpdeskOpsEnv
+from models import Action, Observation, ResolutionOperation, Reward, State, StepResult, TicketItem
 
 __all__ = [
     "Action",
-    "BugReport",
-    "CodeReviewEnv",
-    "CodeSnippet",
+    "HelpdeskEnvClient",
+    "HelpdeskOpsEnv",
     "Observation",
+    "ResolutionOperation",
     "Reward",
     "State",
     "StepResult",
+    "TicketItem",
 ]

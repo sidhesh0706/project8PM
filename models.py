@@ -1,64 +1,80 @@
 from typing import List, Literal, Optional
-from pydantic import BaseModel
 
-BUG_TYPES = (
-    "off_by_one", "wrong_variable", "missing_return", "mutable_default_arg",
-    "wrong_logic", "missing_edge_case", "incorrect_exception_handling",
-    "hardcoded_secret", "no_bug",
+from pydantic import BaseModel, Field
+
+ACTION_TYPES = (
+    "lookup_user",
+    "lookup_device",
+    "search_kb",
+    "check_access_policy",
+    "review_login_risk",
+    "reset_password",
+    "unlock_account",
+    "issue_vpn_profile",
+    "grant_app_access",
+    "assign_license",
+    "revoke_access",
+    "deny_request",
+    "escalate_security",
+    "escalate_it_ops",
+    "close_as_no_issue",
 )
 
-SEVERITIES = ("low", "medium", "high")
+PRIORITIES = ("low", "medium", "high", "critical")
+INVESTIGATION_ACTIONS = (
+    "lookup_user",
+    "lookup_device",
+    "search_kb",
+    "check_access_policy",
+    "review_login_risk",
+)
+TERMINAL_ACTIONS = tuple(action for action in ACTION_TYPES if action not in INVESTIGATION_ACTIONS)
 
-BugType = Literal[
-    "off_by_one", "wrong_variable", "missing_return", "mutable_default_arg",
-    "wrong_logic", "missing_edge_case", "incorrect_exception_handling",
-    "hardcoded_secret", "no_bug",
+ActionType = Literal[
+    "lookup_user",
+    "lookup_device",
+    "search_kb",
+    "check_access_policy",
+    "review_login_risk",
+    "reset_password",
+    "unlock_account",
+    "issue_vpn_profile",
+    "grant_app_access",
+    "assign_license",
+    "revoke_access",
+    "deny_request",
+    "escalate_security",
+    "escalate_it_ops",
+    "close_as_no_issue",
 ]
 
-Severity = Literal["low", "medium", "high"]
+Priority = Literal["low", "medium", "high", "critical"]
 
-class CodeSnippet(BaseModel):
+
+class TicketItem(BaseModel):
     id: str
-    code: str
-    language: str = "python"
-    context: str = ""
-    pr_description: str = ""
-    failed_test: Optional[str] = None
-
-class BugReport(BaseModel):
-    snippet_id: str
-    bug_type: BugType
-    explanation: str
-    severity: Severity
-    suggested_fix: str
-
-class Observation(BaseModel):
-    snippets: List[CodeSnippet]
-    step_number: int
-    total_snippets: int
-    task_name: str
-    session_id: Optional[str] = None
-
-class State(BaseModel):
-    snippets: List[CodeSnippet]
-    step_number: int
-    total_snippets: int
-    task_name: str
-    session_id: Optional[str] = None
-    done: bool
-    snippets_remaining: int
-    cumulative_score: float
+    title: str
+    requester: str
+    department: str
+    priority: Priority
+    category: str
+    user_message: str
+    visible_context: List[str] = Field(default_factory=list)
+    available_actions: List[ActionType] = Field(default_factory=list)
+    gathered_facts: List[str] = Field(default_factory=list)
+    action_history: List[str] = Field(default_factory=list)
 
 
-class Reward(BaseModel):
-    value: float
-    reason: str
-    explanation_quality: float = 0.0
-    fix_quality: float = 0.0
+class ResolutionOperation(BaseModel):
+    case_id: str
+    action_type: ActionType
+    target: str = ""
+    note: str = ""
+    customer_message: str = ""
 
 
 class Action(BaseModel):
-    reports: List[BugReport]
+    operations: List[ResolutionOperation] = Field(default_factory=list)
 
 
 class ResetRequest(BaseModel):
@@ -67,8 +83,43 @@ class ResetRequest(BaseModel):
 
 class StepRequest(BaseModel):
     session_id: Optional[str] = None
-    reports: Optional[List[BugReport]] = None
+    operations: Optional[List[ResolutionOperation]] = None
     action: Optional[Action] = None
+
+
+class Observation(BaseModel):
+    tickets: List[TicketItem]
+    snippets: List[TicketItem] = Field(default_factory=list)
+    step_number: int
+    current_case_step: int
+    total_tickets: int
+    total_snippets: int
+    task_name: str
+    session_id: Optional[str] = None
+
+
+class State(BaseModel):
+    tickets: List[TicketItem]
+    snippets: List[TicketItem] = Field(default_factory=list)
+    step_number: int
+    current_case_step: int
+    total_tickets: int
+    total_snippets: int
+    task_name: str
+    session_id: Optional[str] = None
+    done: bool
+    tickets_remaining: int
+    snippets_remaining: int
+    cumulative_score: float
+
+
+class Reward(BaseModel):
+    value: float
+    reason: str
+    evidence_quality: float = 0.0
+    resolution_quality: float = 0.0
+    safety_quality: float = 0.0
+
 
 class StepResult(BaseModel):
     observation: Observation

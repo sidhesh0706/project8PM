@@ -1,0 +1,163 @@
+[
+  {
+    "id": "m1",
+    "title": "Shared mailbox access request for support rotation",
+    "requester": "Divya Rao",
+    "department": "Support",
+    "priority": "medium",
+    "category": "messaging_access",
+    "user_message": "I joined the weekend support rotation but still cannot open the shared mailbox.",
+    "visible_context": [
+      "Weekend support members may receive shared mailbox access.",
+      "Mailbox access requires verification against the rotation roster."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "grant_app_access", "deny_request", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active in the Support department."
+      ],
+      "check_access_policy": [
+        "Current weekend rotation roster includes Divya Rao through the end of the quarter."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "grant_app_access",
+      "target": "support_shared_mailbox",
+      "customer_terms": ["shared mailbox", "support rotation", "granted"],
+      "required_facts": ["Current weekend rotation roster includes Divya Rao through the end of the quarter."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["deny_request"],
+      "reason": "The user is on the approved roster and should receive mailbox access."
+    }
+  },
+  {
+    "id": "m2",
+    "title": "Developer requesting local admin for a demo machine",
+    "requester": "Ishaan Bedi",
+    "department": "Engineering",
+    "priority": "medium",
+    "category": "endpoint_privilege",
+    "user_message": "I need local admin on my laptop today so I can install a driver for an onsite demo.",
+    "visible_context": [
+      "Local admin is restricted on managed laptops.",
+      "Hardware driver exceptions are handled by Endpoint Operations."
+    ],
+    "available_actions": ["lookup_device", "check_access_policy", "escalate_it_ops", "grant_app_access", "deny_request"],
+    "facts_by_action": {
+      "lookup_device": [
+        "Device is a managed corporate laptop with admin rights disabled by policy."
+      ],
+      "check_access_policy": [
+        "Endpoint policy: local admin exceptions require Endpoint Operations approval and temporary elevation tooling."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "escalate_it_ops",
+      "target": "endpoint_operations",
+      "customer_terms": ["endpoint operations", "temporary elevation", "policy"],
+      "required_facts": ["Endpoint policy: local admin exceptions require Endpoint Operations approval and temporary elevation tooling."],
+      "good_actions": ["lookup_device", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["grant_app_access", "close_as_no_issue"],
+      "reason": "The agent should not grant admin access directly; it must escalate to the owning team."
+    }
+  },
+  {
+    "id": "m3",
+    "title": "Impossible travel alert after approved business trip",
+    "requester": "Sara Dsouza",
+    "department": "Field Operations",
+    "priority": "medium",
+    "category": "identity_risk",
+    "user_message": "My account keeps asking for extra verification because I just landed in Singapore for a customer visit.",
+    "visible_context": [
+      "The user opened the ticket from the same device used last week.",
+      "Travel itineraries are synced to the security portal."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "close_as_no_issue", "reset_password", "escalate_security"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User status: active and MFA compliant."
+      ],
+      "review_login_risk": [
+        "Security portal shows approved travel to Singapore starting today.",
+        "Device fingerprint matches the user's usual managed laptop."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "close_as_no_issue",
+      "target": "travel_false_positive",
+      "customer_terms": ["travel", "expected", "continue"],
+      "required_facts": ["Security portal shows approved travel to Singapore starting today."],
+      "good_actions": ["review_login_risk"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["reset_password", "escalate_security"],
+      "reason": "This is a known, expected travel scenario rather than a compromise."
+    }
+  },
+  {
+    "id": "m4",
+    "title": "Contractor requesting Adobe license outside approved scope",
+    "requester": "Arjun Nair",
+    "department": "Marketing",
+    "priority": "medium",
+    "category": "licensing",
+    "user_message": "Can you give me a full Adobe Creative Cloud seat for a two-day contractor engagement?",
+    "visible_context": [
+      "Contractor access is controlled by procurement policy.",
+      "Short-term contractors may use shared kiosks but not named premium licenses without director approval."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "assign_license", "deny_request", "escalate_it_ops"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is a contractor with an end date this week."
+      ],
+      "check_access_policy": [
+        "License policy: named premium Adobe seats for contractors require director approval, which is not attached."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "deny_request",
+      "target": "adobe_creative_cloud",
+      "customer_terms": ["approval", "policy", "cannot provision"],
+      "required_facts": ["License policy: named premium Adobe seats for contractors require director approval, which is not attached."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["assign_license"],
+      "reason": "The request is out of policy and should be denied unless formal approval is provided."
+    }
+  },
+  {
+    "id": "m5",
+    "title": "Missing payroll dashboard role after department transfer",
+    "requester": "Priya Kapoor",
+    "department": "People Operations",
+    "priority": "high",
+    "category": "internal_app_access",
+    "user_message": "I moved from recruiting to payroll this morning and lost access to the payroll operations dashboard.",
+    "visible_context": [
+      "Department changes sync overnight unless manually expedited.",
+      "Payroll dashboard access is managed through a role-mapping automation."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "grant_app_access", "escalate_it_ops", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "HRIS reflects the new payroll role, but IAM still shows the previous recruiting role."
+      ],
+      "check_access_policy": [
+        "Payroll dashboard access should be granted automatically after IAM role sync, or manually expedited by Identity Operations."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "escalate_it_ops",
+      "target": "identity_operations",
+      "customer_terms": ["role sync", "identity operations", "expedite"],
+      "required_facts": ["HRIS reflects the new payroll role, but IAM still shows the previous recruiting role."],
+      "good_actions": ["lookup_user", "check_access_policy"],
+      "optional_actions": [],
+      "disallowed_actions": ["close_as_no_issue", "deny_request"],
+      "reason": "The user is entitled, but the role-sync automation needs manual intervention."
+    }
+  }
+]

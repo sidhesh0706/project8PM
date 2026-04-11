@@ -1,89 +1,103 @@
-name: code-review-env
-version: "1.0.0"
+name: it-helpdesk-ops-env
+version: "2.0.0"
 description: >
-  A real-world OpenEnv environment where an AI agent reviews code
-  snippets, identifies bugs, classifies severity, and suggests fixes.
-  Partial credit is awarded for partially correct reviews.
+  A real-world OpenEnv environment where an AI agent works as an enterprise IT
+  helpdesk and security operations analyst. The agent must investigate tickets,
+  gather evidence, check policy, and choose a safe final action such as unlock,
+  provision, deny, revoke, or escalate.
 
 observation_space:
   type: object
   fields:
-    - name: snippets
-      type: list[CodeSnippet]
-      description: Python and JavaScript code snippets to review
+    - name: tickets
+      type: list[TicketItem]
+      description: The currently active ticket, including visible context, discovered facts, and prior actions.
     - name: step_number
       type: integer
-      description: Current step in the episode
-    - name: total_snippets
+      description: Global step count in the episode.
+    - name: current_case_step
       type: integer
-      description: Total number of snippets in this task
+      description: Step count within the active case.
+    - name: total_tickets
+      type: integer
+      description: Total number of tickets in the selected task.
     - name: task_name
       type: string
-      description: Name of the current task
+      description: Name of the active task tier.
     - name: session_id
       type: string|null
-      description: Session identifier returned by /reset and reused for /step and /state
+      description: Session identifier returned by /reset and reused for /step and /state.
 
 action_space:
   type: object
   fields:
-    - name: reports
-      type: list[BugReport]
-      description: One bug report per snippet
-    - name: bug_type
+    - name: operations
+      type: list[ResolutionOperation]
+      description: One or more operations, though the environment executes the first operation for the active ticket.
+    - name: case_id
+      type: string
+      description: Ticket identifier for the active case.
+    - name: action_type
       type: enum
       values:
-        - off_by_one
-        - wrong_variable
-        - missing_return
-        - mutable_default_arg
-        - wrong_logic
-        - missing_edge_case
-        - incorrect_exception_handling
-        - hardcoded_secret
-        - no_bug
-    - name: severity
-      type: enum
-      values: [low, medium, high]
-    - name: suggested_fix
+        - lookup_user
+        - lookup_device
+        - search_kb
+        - check_access_policy
+        - review_login_risk
+        - reset_password
+        - unlock_account
+        - issue_vpn_profile
+        - grant_app_access
+        - assign_license
+        - revoke_access
+        - deny_request
+        - escalate_security
+        - escalate_it_ops
+        - close_as_no_issue
+    - name: target
       type: string
-      description: Corrected line(s) of code
+      description: Resource or queue targeted by the operation.
+    - name: note
+      type: string
+      description: Internal reasoning or analyst note for the action.
+    - name: customer_message
+      type: string
+      description: User-facing explanation of the action taken.
 
 tasks:
   - name: easy
-    description: 5 production-style review snippets with obvious bugs and practical context
+    description: Routine support tasks such as password resets, lockouts, VPN restoration, and approved SaaS access.
     difficulty: easy
-    num_snippets: 5
+    num_cases: 5
     expected_score_range: [0.7, 1.0]
 
   - name: medium
-    description: 6 moderately subtle snippets including retries, cache state, and webhook parsing
+    description: Policy-aware operations cases requiring roster checks, travel-risk interpretation, and controlled escalation.
     difficulty: medium
-    num_snippets: 6
-    expected_score_range: [0.4, 0.8]
+    num_cases: 5
+    expected_score_range: [0.5, 0.9]
 
   - name: hard
-    description: 14 advanced snippets across Python and JavaScript, including auth flows, audit events, async bugs, and no-bug traps
+    description: High-stakes operational scenarios covering offboarding drift, probable compromise, unmanaged devices, and production access.
     difficulty: hard
-    num_snippets: 14
-    expected_score_range: [0.2, 0.7]
+    num_cases: 6
+    expected_score_range: [0.4, 0.8]
 
   - name: security
-    description: 5 snippets with security vulnerabilities and secure no-bug validation
+    description: Security-heavy cases involving MFA fatigue, leaked credentials, phishing, terminated access, and unsafe data handling.
     difficulty: hard
-    num_snippets: 5
+    num_cases: 5
     expected_score_range: [0.5, 0.9]
 
 reward:
   range: [0.0, 1.0]
   partial_credit: true
   scoring_rules:
-    - correct bug_type + correct severity + good fix = 1.0
-    - correct bug_type + correct severity + weak fix = 0.8
-    - correct bug_type + wrong severity + good fix = 0.7
-    - correct bug_type + wrong severity + weak fix = 0.5
-    - wrong bug_type = 0.2
-    - missed snippet = 0.0
+    - evidence gathering receives partial credit when the action reveals relevant facts.
+    - repeated or irrelevant investigations receive little to no credit.
+    - correct final resolution with good evidence coverage and clear communication scores highest.
+    - unsafe or policy-violating final actions score poorly.
 
 api:
   endpoints:
@@ -94,21 +108,25 @@ api:
     - GET /report
     - GET /sessions/summary
     - GET /manifest
+    - GET /health
+    - GET /web
     - GET /
 
 environment_variables:
   - name: API_BASE_URL
-    description: The API endpoint for the LLM
+    description: The API endpoint for the LLM proxy.
   - name: MODEL_NAME
-    description: The model identifier to use for inference
+    description: The model identifier to use for inference.
   - name: API_KEY
-    description: The injected proxy/API key used by the OpenAI client
+    description: The injected proxy/API key used by the OpenAI client.
   - name: HF_TOKEN
-    description: Optional credential fallback used by the baseline inference script
+    description: Optional local fallback credential accepted by the baseline.
   - name: LOCAL_IMAGE_NAME
-    description: Optional local image name when using docker-image based execution
+    description: Optional local image name when using docker-image based execution.
+
 runtime:
   framework: fastapi
   port: 7860
+
 app:
   entrypoint: app:app

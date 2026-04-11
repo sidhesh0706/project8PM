@@ -1,9 +1,4 @@
 {
-  "description": "14 mixed Python and JavaScript snippets, including subtle regressions and no-bug traps.",
-  "grader_defaults": {
-    "expected_term_limit": 6,
-    "fix_threshold": 0.35,
-    "pair_fix_threshold": 0.2,
-    "pair_explanation_threshold": 0.2
-  }
+  "description": "High-stakes operational cases covering offboarding failures, probable compromise, unmanaged devices, production data access, and audit-driven remediation.",
+  "max_steps_per_case": 5
 }

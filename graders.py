@@ -1,429 +1,210 @@
 import re
-from functools import lru_cache
-from typing import List
+from typing import Iterable
 
-from models import BugReport
-
-STOPWORDS = {
-    "added", "after", "against", "agent", "allows", "already", "always", "appears",
-    "before", "being", "between", "calls", "case", "causing", "check", "clearly",
-    "code", "correct", "crashes", "default", "described", "detected", "does", "edge",
-    "errors", "from", "function", "helper", "implementation", "instead", "into",
-    "item", "items", "logic", "missing", "must", "needed", "none", "note", "notes",
-    "once", "only", "path", "present", "request", "requests", "returns", "review",
-    "same", "shared", "should", "snippet", "still", "than", "that", "their", "there",
-    "these", "this", "through", "uses", "using", "valid", "value", "when", "with",
-    "without", "workflow", "wrong",
-}
-
-GENERIC_EXPLANATION_PHRASES = (
-    "likely logic issue",
-    "review the implementation",
-    "align it with the intended behavior",
-    "there is a bug",
-    "something is wrong",
-)
-
-GENERIC_FIX_PHRASES = (
-    "review the implementation",
-    "fix the logic",
-    "update the code",
-    "correct the implementation",
-    "handle the edge case",
-    "no changes needed",
-)
-
-BUG_TYPE_HINTS = {
-    "off_by_one": {"boundary", "index", "range", "slice"},
-    "wrong_variable": {"field", "variable", "discount", "tax"},
-    "missing_return": {"await", "return", "promise", "json"},
-    "mutable_default_arg": {"default", "shared", "none", "list", "dict"},
-    "wrong_logic": {"condition", "logic", "query", "comparison", "recursive"},
-    "missing_edge_case": {"guard", "missing", "edge", "zero", "empty"},
-    "incorrect_exception_handling": {"except", "error", "handle", "close"},
-    "hardcoded_secret": {"secret", "credential", "environment", "bcrypt"},
-    "no_bug": {"correct", "intended", "expected"},
-}
-
-SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2}
-
-SALIENT_PATTERNS = (
-    "===", "0.0", "await", "basename", "bcrypt", "config", "discount",
-    "environment", "exchange", "expires_at", "join", "max_attempts", "md5",
-    "none", "null", "overrides", "page_size", "payload", "refresh_token",
-    "response", "user_id", "zerodivisionerror",
-)
+from models import INVESTIGATION_ACTIONS, TERMINAL_ACTIONS, ResolutionOperation
 
 
 def _normalize(text: str) -> str:
     return re.sub(r"\s+", " ", (text or "").strip().lower())
 
 
-def _tokenize(text: str) -> set[str]:
-    return set(re.findall(r"[a-zA-Z_]{3,}", _normalize(text)))
+def _coverage_score(values: Iterable[str], reference: Iterable[str]) -> float:
+    reference_list = [item for item in reference if item]
+    if not reference_list:
+        return 1.0
+    normalized_values = {_normalize(item) for item in values}
+    hits = 0
+    for item in reference_list:
+        normalized_item = _normalize(item)
+        if normalized_item in normalized_values:
+            hits += 1
+    return hits / len(reference_list)
 
 
-def _extract_keywords(text: str) -> set[str]:
+def _term_score(text: str, terms: Iterable[str]) -> float:
+    term_list = [term for term in terms if term]
+    if not term_list:
+        return 1.0
     normalized = _normalize(text)
-    keywords = {
-        token for token in re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", normalized)
-        if token not in STOPWORDS and (len(token) >= 4 or "_" in token or any(ch.isdigit() for ch in token))
-    }
-    for pattern in SALIENT_PATTERNS:
-        if pattern in normalized:
-            keywords.add(pattern)
-    return keywords
+    hits = sum(1 for term in term_list if _normalize(term) in normalized)
+    return hits / len(term_list)
 
 
-def _extract_code_identifiers(text: str) -> set[str]:
-    identifiers = set(re.findall(r"\b[a-zA-Z_][a-zA-Z0-9_]*\b", text or ""))
-    return {
-        identifier.lower()
-        for identifier in identifiers
-        if identifier.lower() not in STOPWORDS and len(identifier) >= 4
-    }
+def score_investigation(
+    case: dict,
+    operation: ResolutionOperation,
+    gathered_facts: list[str],
+    action_history: list[str],
+) -> dict:
+    facts_by_action = case.get("facts_by_action", {})
+    expected = case.get("expected_resolution", {})
+    revealed_facts = facts_by_action.get(operation.action_type, [])
+    newly_revealed = [fact for fact in revealed_facts if fact not in gathered_facts]
+    good_actions = set(expected.get("good_actions", []))
+    optional_actions = set(expected.get("optional_actions", []))
 
-
-def _select_expected_terms(terms: set[str], limit: int = 5) -> set[str]:
-    ranked = sorted(
-        terms,
-        key=lambda term: (
-            "_" not in term and not any(ch.isdigit() for ch in term),
-            len(term) < 6,
-            term,
-        ),
-    )
-    return set(ranked[:limit])
-
-
-@lru_cache(maxsize=None)
-def _load_reference_entry(snippet_id: str) -> dict:
-    from tasks import TASKS
-
-    for task_name, task in TASKS.items():
-        for snippet in task["snippets"]:
-            if snippet.id == snippet_id:
-                return {
-                    "task_name": task_name,
-                    "context": snippet.context or "",
-                    "pr_description": snippet.pr_description or "",
-                    "failed_test": snippet.failed_test or "",
-                    "code": snippet.code or "",
-                    "rubric": task.get("rubrics", {}).get(snippet_id, {}),
-                    "config": task.get("config", {}),
-                }
-    return {
-        "task_name": "",
-        "context": "",
-        "pr_description": "",
-        "failed_test": "",
-        "code": "",
-        "rubric": {},
-        "config": {},
-    }
-
-
-def _grader_defaults(reference_entry: dict) -> dict:
-    return reference_entry.get("config", {}).get("grader_defaults", {})
-
-
-@lru_cache(maxsize=None)
-def _build_snippet_expectations(
-    snippet_id: str,
-    bug_type: str,
-    explanation: str,
-    suggested_fix: str,
-) -> dict[str, set[str]]:
-    metadata = _load_reference_entry(snippet_id)
-    bug_hints = BUG_TYPE_HINTS.get(bug_type, set())
-    rubric = metadata.get("rubric", {})
-    defaults = _grader_defaults(metadata)
-    limit = rubric.get("expected_term_limit", defaults.get("expected_term_limit", 5))
-    shared_terms = (
-        _extract_keywords(metadata["context"])
-        | _extract_keywords(metadata["pr_description"])
-        | _extract_keywords(metadata["failed_test"])
-        | _extract_code_identifiers(metadata["code"])
-    )
-    rubric_explanation_terms = {term.lower() for term in rubric.get("explanation_terms", [])}
-    rubric_fix_terms = {term.lower() for term in rubric.get("fix_terms", [])}
-    explanation_terms = _select_expected_terms(
-        rubric_explanation_terms | _extract_keywords(explanation) | bug_hints | shared_terms,
-        limit=limit,
-    )
-    fix_terms = _select_expected_terms(
-        rubric_fix_terms | _extract_keywords(suggested_fix) | bug_hints | shared_terms,
-        limit=limit,
-    )
-    grounding_terms = _select_expected_terms(
-        _extract_keywords(metadata["context"])
-        | _extract_keywords(metadata["pr_description"])
-        | _extract_keywords(metadata["failed_test"])
-        | _extract_code_identifiers(metadata["code"]),
-        limit=max(limit, 6),
-    )
-    return {"explanation": explanation_terms, "fix": fix_terms, "grounding": grounding_terms}
-
-
-def _semantic_match_score(submitted_text: str, reference_text: str) -> float:
-    submitted_tokens = _tokenize(submitted_text)
-    reference_tokens = _tokenize(reference_text)
-    if not submitted_tokens or not reference_tokens:
-        return 0.0
-    overlap = submitted_tokens & reference_tokens
-    return len(overlap) / len(reference_tokens)
-
-
-def _coverage_score(text: str, expected_terms: set[str]) -> float:
-    if not expected_terms:
-        return 0.0
-    normalized = _normalize(text)
-    matches = sum(1 for term in expected_terms if term in normalized)
-    return matches / len(expected_terms)
-
-
-def _contains_generic_phrase(text: str, phrases: tuple[str, ...]) -> bool:
-    normalized = _normalize(text)
-    return any(phrase in normalized for phrase in phrases)
-
-
-def _context_grounding_score(text: str, grounding_terms: set[str]) -> float:
-    """Rewards tying the answer to snippet-specific context and identifiers."""
-    if not text.strip():
-        return 0.0
-    return _coverage_score(text, grounding_terms)
-
-
-def _looks_like_concrete_fix(text: str) -> float:
-    """Prefers concrete patch-like fixes over generic advice."""
-    normalized = _normalize(text)
-    if not normalized:
-        return 0.0
-
-    if _contains_generic_phrase(normalized, GENERIC_FIX_PHRASES):
-        return 0.0
-
-    has_code_cues = any(
-        cue in text
-        for cue in ("=", "==", "===", "return ", "if ", "for ", "while ", "except", "await", "def ", "const ", "let ")
-    )
-    has_multiline = "\n" in text
-    token_count = len(re.findall(r"[a-zA-Z_][a-zA-Z0-9_]*", text))
-
-    signal = 0.0
-    if has_code_cues:
-        signal += 0.45
-    if has_multiline:
-        signal += 0.2
-    if token_count >= 4:
-        signal += 0.2
-    if token_count >= 8:
-        signal += 0.15
-    return min(signal, 1.0)
-
-
-def _explanation_quality_score(submitted: BugReport, correct: BugReport) -> float:
-    explanation = submitted.explanation or ""
-    if len(explanation.strip()) < 8:
-        return 0.0
-
-    snippet_expectations = _build_snippet_expectations(
-        correct.snippet_id, correct.bug_type, correct.explanation, correct.suggested_fix
-    )
-    expected_explanation_terms = snippet_expectations["explanation"]
-    grounding_terms = snippet_expectations["grounding"]
-    coverage = _coverage_score(explanation, expected_explanation_terms)
-    similarity = _semantic_match_score(explanation, correct.explanation)
-    grounding = _context_grounding_score(explanation, grounding_terms)
-    quality = max(coverage, similarity, grounding)
-    if _contains_generic_phrase(explanation, GENERIC_EXPLANATION_PHRASES):
-        quality *= 0.6
-    return quality
-
-
-def _fix_quality_score(submitted: BugReport, correct: BugReport) -> float:
-    suggested_fix = submitted.suggested_fix or ""
-    if _normalize(suggested_fix) == "no fix needed.":
-        return 1.0 if correct.bug_type == "no_bug" else 0.0
-    if len(suggested_fix.strip()) <= 5:
-        return 0.0
-
-    snippet_expectations = _build_snippet_expectations(
-        correct.snippet_id, correct.bug_type, correct.explanation, correct.suggested_fix
-    )
-    expected_fix_terms = snippet_expectations["fix"]
-    grounding_terms = snippet_expectations["grounding"]
-    coverage = _coverage_score(suggested_fix, expected_fix_terms)
-    similarity = _semantic_match_score(suggested_fix, correct.suggested_fix)
-    grounding = _context_grounding_score(suggested_fix, grounding_terms)
-    concreteness = _looks_like_concrete_fix(suggested_fix)
-    quality = max(coverage, similarity, grounding * 0.85, concreteness * 0.75)
-    if _contains_generic_phrase(suggested_fix, GENERIC_FIX_PHRASES):
-        quality *= 0.5
-    return quality
-
-
-def _severity_alignment(submitted: BugReport, correct: BugReport) -> dict[str, float | bool]:
-    if submitted.severity == correct.severity:
-        return {"exact": True, "distance": 0, "score": 1.0}
-
-    distance = abs(SEVERITY_ORDER[submitted.severity] - SEVERITY_ORDER[correct.severity])
-    if distance == 1:
-        return {"exact": False, "distance": distance, "score": 0.5}
-    return {"exact": False, "distance": distance, "score": 0.0}
-
-
-def _quality_thresholds(correct: BugReport) -> dict[str, float]:
-    reference_entry = _load_reference_entry(correct.snippet_id)
-    defaults = _grader_defaults(reference_entry)
-    rubric = reference_entry.get("rubric", {})
-
-    fix_threshold = rubric.get("fix_threshold", defaults.get("fix_threshold", 0.35))
-    pair_fix_threshold = rubric.get("pair_fix_threshold", defaults.get("pair_fix_threshold", 0.2))
-    pair_explanation_threshold = rubric.get(
-        "pair_explanation_threshold",
-        defaults.get("pair_explanation_threshold", 0.2),
-    )
-    return {
-        "fix_threshold": float(fix_threshold),
-        "pair_fix_threshold": float(pair_fix_threshold),
-        "pair_explanation_threshold": float(pair_explanation_threshold),
-    }
-
-
-def _is_high_quality_report(submitted: BugReport, correct: BugReport) -> tuple[bool, float, float]:
-    explanation_quality = _explanation_quality_score(submitted, correct)
-    fix_quality = _fix_quality_score(submitted, correct)
-    thresholds = _quality_thresholds(correct)
-
-    # High-quality answers usually explain the bug clearly and provide a concrete fix.
-    is_high_quality = (
-        fix_quality >= thresholds["fix_threshold"]
-        or (
-            fix_quality >= thresholds["pair_fix_threshold"]
-            and explanation_quality >= thresholds["pair_explanation_threshold"]
-        )
-    )
-
-    return is_high_quality, round(explanation_quality, 2), round(fix_quality, 2)
-
-
-def score_report(submitted: BugReport | None, correct: BugReport) -> dict:
-    if submitted is None:
+    if operation.action_type not in INVESTIGATION_ACTIONS:
         return {
-            "score": 0.0,
-            "reason": "not attempted",
-            "explanation_quality": 0.0,
-            "fix_quality": 0.0,
-            "severity_alignment": 0.0,
+            "reward": 0.0,
+            "reason": "invalid investigation action",
+            "new_facts": [],
+            "evidence_quality": 0.0,
+            "resolution_quality": 0.0,
+            "safety_quality": 0.0,
         }
 
-    if correct.bug_type == "no_bug":
-        score = 1.0 if submitted.bug_type == "no_bug" else 0.0
-        reason = "correct restraint" if score == 1.0 else "false positive - no bug existed"
+    if operation.action_type in action_history:
         return {
-            "score": score,
-            "reason": reason,
-            "explanation_quality": 1.0 if score == 1.0 else 0.0,
-            "fix_quality": 1.0 if score == 1.0 else 0.0,
-            "severity_alignment": 1.0 if submitted.severity == correct.severity else 0.0,
+            "reward": 0.05,
+            "reason": "repeated investigation step",
+            "new_facts": [],
+            "evidence_quality": 0.1,
+            "resolution_quality": 0.0,
+            "safety_quality": 1.0,
         }
 
-    if submitted.bug_type != correct.bug_type:
-        severity = _severity_alignment(submitted, correct)
+    if newly_revealed:
+        reward = 0.35 if operation.action_type in good_actions else 0.2
+        if operation.action_type in optional_actions and operation.action_type not in good_actions:
+            reward = max(reward, 0.2)
         return {
-            "score": 0.2,
-            "reason": f"wrong bug type (got {submitted.bug_type}, expected {correct.bug_type})",
-            "explanation_quality": 0.0,
-            "fix_quality": 0.0,
-            "severity_alignment": severity["score"],
+            "reward": reward,
+            "reason": "useful evidence gathered",
+            "new_facts": newly_revealed,
+            "evidence_quality": 1.0 if operation.action_type in good_actions else 0.7,
+            "resolution_quality": 0.0,
+            "safety_quality": 1.0,
         }
 
-    high_quality, explanation_quality, fix_quality = _is_high_quality_report(submitted, correct)
-    severity = _severity_alignment(submitted, correct)
-
-    if severity["exact"]:
-        score = 1.0 if high_quality else 0.8
-        reason = "correct" if high_quality else "correct bug and severity, fix missing or weak"
-    else:
-        score = 0.7 if high_quality else 0.5
-        if severity["score"] == 0.5:
-            reason = "correct bug type, adjacent severity, review quality varies"
-        else:
-            reason = "correct bug type, severity far from expected"
+    if operation.action_type in good_actions or operation.action_type in optional_actions:
+        return {
+            "reward": 0.1,
+            "reason": "safe but low-yield investigation step",
+            "new_facts": [],
+            "evidence_quality": 0.4,
+            "resolution_quality": 0.0,
+            "safety_quality": 1.0,
+        }
 
     return {
-        "score": score,
+        "reward": 0.0,
+        "reason": "irrelevant investigation step",
+        "new_facts": [],
+        "evidence_quality": 0.0,
+        "resolution_quality": 0.0,
+        "safety_quality": 1.0,
+    }
+
+
+def score_resolution(
+    case: dict,
+    operation: ResolutionOperation,
+    gathered_facts: list[str],
+    action_history: list[str],
+) -> dict:
+    expected = case.get("expected_resolution", {})
+    required_facts = expected.get("required_facts", [])
+    good_actions = expected.get("good_actions", [])
+    disallowed_actions = set(expected.get("disallowed_actions", []))
+    customer_terms = expected.get("customer_terms", [])
+    resolution_text = f"{operation.note} {operation.customer_message}"
+    evidence_quality = _coverage_score(gathered_facts, required_facts)
+    workflow_quality = _coverage_score(action_history, good_actions)
+    communication_quality = _term_score(resolution_text, customer_terms)
+    safety_quality = 0.0 if operation.action_type in disallowed_actions else 1.0
+
+    if operation.action_type not in TERMINAL_ACTIONS:
+        return {
+            "reward": 0.0,
+            "case_score": 0.0,
+            "reason": "resolution step must use a terminal action",
+            "evidence_quality": 0.0,
+            "resolution_quality": 0.0,
+            "safety_quality": 0.0,
+            "successful": False,
+        }
+
+    if operation.action_type != expected.get("action_type"):
+        reward = 0.0 if operation.action_type in disallowed_actions else 0.15
+        return {
+            "reward": reward,
+            "case_score": reward,
+            "reason": f"wrong final action (expected {expected.get('action_type')})",
+            "evidence_quality": evidence_quality,
+            "resolution_quality": 0.0,
+            "safety_quality": safety_quality,
+            "successful": False,
+        }
+
+    resolution_quality = 0.55 + (0.2 * evidence_quality) + (0.15 * workflow_quality) + (0.1 * communication_quality)
+    case_score = round(min(resolution_quality, 1.0), 2)
+    reason = expected.get("reason", "correct resolution")
+    return {
+        "reward": case_score,
+        "case_score": case_score,
         "reason": reason,
-        "explanation_quality": explanation_quality,
-        "fix_quality": fix_quality,
-        "severity_alignment": severity["score"],
+        "evidence_quality": round(evidence_quality, 2),
+        "resolution_quality": round(case_score, 2),
+        "safety_quality": safety_quality,
+        "successful": True,
     }
 
 
-def _score_single(submitted: BugReport, correct: BugReport) -> float:
-    """
-    Score one submitted report against the correct answer.
-    - Correct bug_type + correct severity + good fix = 1.0
-    - Correct bug_type + correct severity + weak fix = 0.8
-    - Correct bug_type + wrong severity + good fix   = 0.7
-    - Correct bug_type + wrong severity + weak fix   = 0.5
-    - Wrong bug_type                                 = 0.2
-    - Correct is no_bug but agent flagged something  = 0.0
-    """
-    return score_report(submitted, correct)["score"]
-
-
-def grade_reports(
-    submitted: List[BugReport],
-    correct: List[BugReport]
-) -> float:
-    if not correct:
-        return 0.0
-
-    submitted_lookup = {r.snippet_id: r for r in submitted}
-    total_score = 0.0
-
-    for correct_report in correct:
-        sid = correct_report.snippet_id
-        submitted_report = submitted_lookup.get(sid)
-        total_score += score_report(submitted_report, correct_report)["score"]
-
-    return round(total_score / len(correct), 2)
-
-
-def grade_task(task_name: str, submitted: List[BugReport]) -> dict:
+def grade_task(task_name: str, operations: list[ResolutionOperation]) -> dict:
     from tasks import TASKS
 
-    if task_name not in TASKS:
-        raise ValueError(f"Unknown task: {task_name}")
+    task = TASKS[task_name]
+    max_steps = int(task.get("config", {}).get("max_steps_per_case", 5))
+    grouped: dict[str, list[ResolutionOperation]] = {}
+    for operation in operations:
+        grouped.setdefault(operation.case_id, []).append(operation)
 
-    correct = TASKS[task_name]["answers"]
-    submitted_lookup = {r.snippet_id: r for r in submitted}
-    valid_ids = {r.snippet_id for r in correct}
-    extra_reports = sorted(r.snippet_id for r in submitted if r.snippet_id not in valid_ids)
+    trajectory = []
+    case_scores: list[float] = []
+    for case in task["cases"]:
+        case_operations = grouped.get(case["id"], [])
+        gathered_facts: list[str] = []
+        action_history: list[str] = []
+        case_score = 0.0
+        successful = False
+        reason = "no operations submitted for case"
+        for index, operation in enumerate(case_operations[:max_steps], start=1):
+            if operation.action_type in INVESTIGATION_ACTIONS:
+                result = score_investigation(case, operation, gathered_facts, action_history)
+                action_history.append(operation.action_type)
+                for fact in result["new_facts"]:
+                    if fact not in gathered_facts:
+                        gathered_facts.append(fact)
+                reason = result["reason"]
+                continue
 
-    breakdown = {}
-    for correct_report in correct:
-        sid = correct_report.snippet_id
-        submitted_report = submitted_lookup.get(sid)
-        result = score_report(submitted_report, correct_report)
-        breakdown[sid] = {
-            "score": result["score"],
-            "reason": result["reason"],
-            "explanation_quality": result["explanation_quality"],
-            "fix_quality": result["fix_quality"],
-            "severity_alignment": result["severity_alignment"],
-        }
+            result = score_resolution(case, operation, gathered_facts, action_history)
+            action_history.append(operation.action_type)
+            case_score = float(result["case_score"])
+            successful = bool(result["successful"])
+            reason = result["reason"]
+            break
 
-    overall = round(
-        sum(v["score"] for v in breakdown.values()) / len(breakdown), 2
-    )
+        case_scores.append(round(case_score, 2))
+        trajectory.append(
+            {
+                "case_id": case["id"],
+                "steps_used": min(len(case_operations), max_steps),
+                "gathered_facts": gathered_facts,
+                "action_history": action_history,
+                "case_score": round(case_score, 2),
+                "successful": successful,
+                "reason": reason,
+            }
+        )
 
+    cumulative_score = round(sum(case_scores) / len(case_scores), 2) if case_scores else 0.0
     return {
-        "task": task_name,
-        "overall_score": overall,
-        "attempted_reports": len([r for r in correct if r.snippet_id in submitted_lookup]),
-        "extra_reports": extra_reports,
-        "breakdown": breakdown,
+        "task_name": task_name,
+        "done": True,
+        "attempted_cases": len(task["cases"]),
+        "total_cases": len(task["cases"]),
+        "cumulative_score": cumulative_score,
+        "resolution_accuracy": round(len([item for item in trajectory if item["successful"]]) / len(trajectory), 2) if trajectory else 0.0,
+        "trajectory": trajectory,
     }

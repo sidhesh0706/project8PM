@@ -25,19 +25,19 @@ class TestAPIContract(unittest.TestCase):
         self.assertEqual(reset.status_code, 200)
         obs = reset.json()
         session_id = obs["session_id"]
-        snippet = obs["snippets"][0]
+        ticket = obs["tickets"][0]
 
         step = self.client.post(
             "/step",
             json={
                 "session_id": session_id,
-                "reports": [
+                "operations": [
                     {
-                        "snippet_id": snippet["id"],
-                        "bug_type": "wrong_logic",
-                        "explanation": "contract test submission",
-                        "severity": "medium",
-                        "suggested_fix": "return value",
+                        "case_id": ticket["id"],
+                        "action_type": "lookup_user",
+                        "target": "account",
+                        "note": "contract test submission",
+                        "customer_message": "Checking the account details now.",
                     }
                 ],
             },
@@ -53,7 +53,7 @@ class TestAPIContract(unittest.TestCase):
         self.assertEqual(report.status_code, 200)
         report_payload = report.json()
         self.assertIn("trajectory", report_payload)
-        self.assertIn("accuracy", report_payload)
+        self.assertIn("resolution_accuracy", report_payload)
 
         summary = self.client.get("/sessions/summary")
         self.assertEqual(summary.status_code, 200)

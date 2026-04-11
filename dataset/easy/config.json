@@ -1,9 +1,4 @@
 {
-  "description": "5 production-style review snippets with obvious bugs.",
-  "grader_defaults": {
-    "expected_term_limit": 5,
-    "fix_threshold": 0.35,
-    "pair_fix_threshold": 0.2,
-    "pair_explanation_threshold": 0.2
-  }
+  "description": "Routine IT helpdesk cases focused on account recovery, VPN restoration, approved SaaS access, and license assignment.",
+  "max_steps_per_case": 4
 }

@@ -1,6 +1,5 @@
 import json
 import os
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -20,21 +19,21 @@ FAILURES: list[str] = []
 PASSES: list[str] = []
 
 
-def fail(msg: str) -> None:
-    FAILURES.append(msg)
-    print(f"[FAIL] {msg}")
+def fail(message: str) -> None:
+    FAILURES.append(message)
+    print(f"[FAIL] {message}")
 
 
-def ok(msg: str) -> None:
-    PASSES.append(msg)
-    print(f"[PASS] {msg}")
+def ok(message: str) -> None:
+    PASSES.append(message)
+    print(f"[PASS] {message}")
 
 
-def assert_true(condition: bool, msg: str) -> None:
+def assert_true(condition: bool, message: str) -> None:
     if condition:
-        ok(msg)
+        ok(message)
     else:
-        fail(msg)
+        fail(message)
 
 
 def parse_openenv_task_counts(text: str) -> dict[str, int]:
@@ -44,7 +43,7 @@ def parse_openenv_task_counts(text: str) -> dict[str, int]:
         line = raw_line.strip()
         if line.startswith("- name:"):
             current_task = line.split(":", 1)[1].strip()
-        elif line.startswith("num_snippets:") and current_task is not None:
+        elif line.startswith("num_cases:") and current_task is not None:
             value = line.split(":", 1)[1].strip()
             try:
                 counts[current_task] = int(value)
@@ -57,7 +56,7 @@ def parse_openenv_endpoints(text: str) -> list[str]:
     endpoints: list[str] = []
     for raw_line in text.splitlines():
         line = raw_line.strip()
-        if line.startswith("- ") and ("/" in line):
+        if line.startswith("- ") and "/" in line:
             endpoint = line[2:].strip()
             if endpoint.startswith(("GET ", "POST ", "PUT ", "PATCH ", "DELETE ")):
                 endpoints.append(endpoint)
@@ -70,16 +69,15 @@ def validate_structure() -> None:
     assert_true(len(TASKS) >= 3, "at least 3 tasks are available")
 
     for task_name, task in TASKS.items():
-        snippets = task["snippets"]
-        answers = task["answers"]
-        assert_true(len(snippets) > 0, f"{task_name}: has snippets")
-        assert_true(len(snippets) == len(answers), f"{task_name}: snippet/answer count matches")
+        cases = task["cases"]
+        assert_true(len(cases) > 0, f"{task_name}: has cases")
+        assert_true(all("expected_resolution" in case for case in cases), f"{task_name}: cases define expected resolutions")
 
 
 def validate_openenv_alignment() -> None:
     content = OPENENV_PATH.read_text(encoding="utf-8")
     yaml_counts = parse_openenv_task_counts(content)
-    actual_counts = {name: len(info["snippets"]) for name, info in TASKS.items()}
+    actual_counts = {name: len(info["cases"]) for name, info in TASKS.items()}
     assert_true(yaml_counts == actual_counts, "openenv task counts match dataset")
 
     endpoints = set(parse_openenv_endpoints(content))
@@ -105,33 +103,31 @@ def validate_api_runtime() -> None:
     assert_true(tasks_resp.status_code == 200, "GET /tasks returns 200")
     assert_true(set(tasks_resp.json().keys()) == set(TASKS.keys()), "GET /tasks keys match loaded tasks")
 
-    # reset via JSON body (compat mode)
     reset_resp = client.post("/reset", json={"task_name": "easy"})
     assert_true(reset_resp.status_code == 200, "POST /reset accepts body payload")
     observation = reset_resp.json()
     session_id = observation.get("session_id")
     assert_true(bool(session_id), "/reset returns session_id")
-    snippets = observation.get("snippets", [])
-    assert_true(len(snippets) == 1, "/reset exposes one current snippet")
+    tickets = observation.get("tickets", [])
+    assert_true(len(tickets) == 1, "/reset exposes one active ticket")
 
-    # step via body payload (session_id + reports)
-    first_snippet_id = snippets[0]["id"] if snippets else None
+    first_ticket_id = tickets[0]["id"] if tickets else None
     step_resp = client.post(
         "/step",
         json={
             "session_id": session_id,
-            "reports": [
+            "operations": [
                 {
-                    "snippet_id": first_snippet_id,
-                    "bug_type": "wrong_logic",
-                    "explanation": "Validation probe report for runtime contract check.",
-                    "severity": "medium",
-                    "suggested_fix": "return value",
+                    "case_id": first_ticket_id,
+                    "action_type": "lookup_user",
+                    "target": "account",
+                    "note": "Validation probe investigation step.",
+                    "customer_message": "I'm checking the account details now.",
                 }
             ],
         },
     )
-    assert_true(step_resp.status_code == 200, "POST /step accepts body payload")
+    assert_true(step_resp.status_code == 200, "POST /step accepts operation payload")
     step_json = step_resp.json()
     assert_true("reward" in step_json, "/step returns reward")
     assert_true("done" in step_json, "/step returns done")
@@ -144,7 +140,7 @@ def validate_api_runtime() -> None:
     assert_true(report_resp.status_code == 200, "GET /report returns 200")
     report_json = report_resp.json()
     assert_true("trajectory" in report_json, "/report returns trajectory")
-    assert_true("accuracy" in report_json, "/report returns accuracy metrics")
+    assert_true("resolution_accuracy" in report_json, "/report returns resolution_accuracy")
 
     summary_resp = client.get("/sessions/summary")
     assert_true(summary_resp.status_code == 200, "GET /sessions/summary returns 200")
@@ -153,13 +149,12 @@ def validate_api_runtime() -> None:
     assert_true(manifest_resp.status_code == 200, "GET /manifest returns 200")
     manifest_json = manifest_resp.json()
     assert_true("task_counts" in manifest_json, "/manifest returns task_counts")
-    assert_true("bug_types" in manifest_json, "/manifest returns bug_types")
+    assert_true("action_types" in manifest_json, "/manifest returns action_types")
 
 
 def validate_baseline() -> None:
     env = os.environ.copy()
     env["PYTHONDONTWRITEBYTECODE"] = "1"
-    # Force deterministic local heuristic path so validation does not depend on external API/network.
     env["API_KEY"] = ""
     env["HF_TOKEN"] = ""
 

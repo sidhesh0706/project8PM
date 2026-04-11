@@ -1,0 +1,163 @@
+[
+  {
+    "id": "e1",
+    "title": "Okta account locked after password reset attempts",
+    "requester": "Ava Patel",
+    "department": "Sales",
+    "priority": "medium",
+    "category": "identity",
+    "user_message": "I reset my password twice and now Okta says my account is locked.",
+    "visible_context": [
+      "User is an active employee.",
+      "Self-service identity recovery is allowed for Sales users."
+    ],
+    "available_actions": ["lookup_user", "review_login_risk", "unlock_account", "reset_password", "escalate_security", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Directory status: active employee with MFA enrolled.",
+        "Lock reason: too many failed sign-ins after a password reset."
+      ],
+      "review_login_risk": [
+        "Risk engine shows no impossible travel or suspicious device signal."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "unlock_account",
+      "target": "okta_account",
+      "customer_terms": ["unlock", "sign in", "retry"],
+      "required_facts": ["Lock reason: too many failed sign-ins after a password reset."],
+      "good_actions": ["lookup_user"],
+      "optional_actions": ["review_login_risk"],
+      "disallowed_actions": ["escalate_security", "grant_app_access"],
+      "reason": "Routine account lockout with no active compromise signal."
+    }
+  },
+  {
+    "id": "e2",
+    "title": "New laptop user forgot the temporary password",
+    "requester": "Rohan Mehta",
+    "department": "Finance",
+    "priority": "medium",
+    "category": "identity",
+    "user_message": "My new laptop is asking for the temporary password from onboarding and I no longer have it.",
+    "visible_context": [
+      "The account was created this morning.",
+      "No account lock is present on the directory profile."
+    ],
+    "available_actions": ["lookup_user", "reset_password", "unlock_account", "escalate_it_ops", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "Directory status: active and not locked.",
+        "Password status: temporary onboarding password expired."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "reset_password",
+      "target": "directory_password",
+      "customer_terms": ["temporary password", "reset", "onboarding"],
+      "required_facts": ["Password status: temporary onboarding password expired."],
+      "good_actions": ["lookup_user"],
+      "optional_actions": [],
+      "disallowed_actions": ["unlock_account", "close_as_no_issue"],
+      "reason": "The user needs a fresh password reset, not an account unlock."
+    }
+  },
+  {
+    "id": "e3",
+    "title": "VPN profile missing after laptop reimage",
+    "requester": "Neha Sharma",
+    "department": "Customer Success",
+    "priority": "medium",
+    "category": "network",
+    "user_message": "After IT reimaged my laptop, the corporate VPN option disappeared.",
+    "visible_context": [
+      "Device is managed in Intune.",
+      "User still appears in the VPN entitlement group."
+    ],
+    "available_actions": ["lookup_device", "lookup_user", "issue_vpn_profile", "escalate_it_ops", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_device": [
+        "Device status: compliant and recently reimaged.",
+        "VPN profile package is missing from the current device assignment."
+      ],
+      "lookup_user": [
+        "User is still a member of the standard corporate VPN group."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "issue_vpn_profile",
+      "target": "corporate_vpn_profile",
+      "customer_terms": ["vpn", "profile", "sync"],
+      "required_facts": ["VPN profile package is missing from the current device assignment."],
+      "good_actions": ["lookup_device"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["grant_app_access", "close_as_no_issue"],
+      "reason": "The laptop needs the VPN profile reassigned after the reimage."
+    }
+  },
+  {
+    "id": "e4",
+    "title": "Approved access request for Figma",
+    "requester": "Maya Iyer",
+    "department": "Design",
+    "priority": "low",
+    "category": "saas_access",
+    "user_message": "My manager approved Figma access in the onboarding form but I still cannot log in.",
+    "visible_context": [
+      "Design hires are allowed a Figma seat.",
+      "The manager approval reference is attached to the ticket."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "grant_app_access", "assign_license", "deny_request", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active and belongs to the Design department."
+      ],
+      "check_access_policy": [
+        "Design onboarding policy: Figma access and seat assignment are permitted with manager approval.",
+        "Approval token AP-4431 is valid for this ticket."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "grant_app_access",
+      "target": "figma_workspace",
+      "customer_terms": ["figma", "access", "provisioned"],
+      "required_facts": ["Approval token AP-4431 is valid for this ticket."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["deny_request", "close_as_no_issue"],
+      "reason": "The approval already exists, so access should be provisioned."
+    }
+  },
+  {
+    "id": "e5",
+    "title": "Power BI seat missing for an analyst",
+    "requester": "Karan Verma",
+    "department": "Business Operations",
+    "priority": "low",
+    "category": "licensing",
+    "user_message": "I can open Power BI but I cannot publish because it says I do not have a Pro license.",
+    "visible_context": [
+      "Business Operations analysts are allowed one Pro seat.",
+      "The request is not security sensitive."
+    ],
+    "available_actions": ["lookup_user", "check_access_policy", "assign_license", "grant_app_access", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "User is active and already has Power BI basic access."
+      ],
+      "check_access_policy": [
+        "Role policy: Business Operations analysts receive one Power BI Pro seat."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "assign_license",
+      "target": "power_bi_pro",
+      "customer_terms": ["license", "power bi", "publish"],
+      "required_facts": ["Role policy: Business Operations analysts receive one Power BI Pro seat."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user"],
+      "disallowed_actions": ["deny_request", "escalate_security"],
+      "reason": "This is a standard licensing issue, not a risky access escalation."
+    }
+  }
+]
