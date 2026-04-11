@@ -4,6 +4,7 @@ from pathlib import Path
 
 DATASET_DIR = Path("dataset")
 TASKS: dict[str, dict] = {}
+TASK_ORDER = ("easy", "medium", "hard", "security")
 
 
 def _read_json(path: Path, default):
@@ -20,7 +21,12 @@ def build_tasks() -> None:
     if not DATASET_DIR.exists():
         return
 
-    for tier_dir in sorted(DATASET_DIR.iterdir()):
+    tier_dirs = {tier_dir.name: tier_dir for tier_dir in DATASET_DIR.iterdir() if tier_dir.is_dir()}
+    ordered_names = [name for name in TASK_ORDER if name in tier_dirs]
+    remaining_names = sorted(name for name in tier_dirs if name not in TASK_ORDER)
+
+    for tier_name in [*ordered_names, *remaining_names]:
+        tier_dir = tier_dirs[tier_name]
         if not tier_dir.is_dir():
             continue
 
