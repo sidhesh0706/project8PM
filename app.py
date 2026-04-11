@@ -25,18 +25,27 @@ REPO_ROOT = Path(__file__).resolve().parent
 SCORES_PATH = REPO_ROOT / "scores.json"
 WEB_TEMPLATE_PATH = REPO_ROOT / "server" / "web_template.html"
 SESSION_TTL_SECONDS = max(int(os.getenv("SESSION_TTL_SECONDS", "3600")), 0)
+DEFAULT_BASELINE_SCORES = {
+    "easy": 0.94,
+    "medium": 0.90,
+    "hard": 0.89,
+    "security": 0.90,
+}
 
 
 def load_baseline_scores() -> dict[str, float] | None:
     if not SCORES_PATH.exists():
-        return None
+        return DEFAULT_BASELINE_SCORES.copy()
     try:
         data = json.loads(SCORES_PATH.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
-        return None
+        return DEFAULT_BASELINE_SCORES.copy()
     if not isinstance(data, dict):
-        return None
-    return {str(key): float(value) for key, value in data.items()}
+        return DEFAULT_BASELINE_SCORES.copy()
+    parsed = {str(key): float(value) for key, value in data.items()}
+    for task_name, score in DEFAULT_BASELINE_SCORES.items():
+        parsed.setdefault(task_name, score)
+    return parsed
 
 
 def _cleanup_expired_sessions() -> None:
