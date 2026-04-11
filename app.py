@@ -126,7 +126,7 @@ def list_tasks():
 
 @app.get("/manifest")
 def manifest():
-    baseline_scores = load_baseline_scores()
+    baseline_scores = load_baseline_scores() or {}
     return {
         "name": "it-helpdesk-ops-env",
         "version": "2.0.0",
@@ -167,7 +167,7 @@ def sessions_summary():
 
 @app.get("/web", response_class=HTMLResponse)
 def web_view():
-    baseline_scores = load_baseline_scores()
+    baseline_scores = load_baseline_scores() or {}
     cards = "".join(
         f"""
         <article class="card">
