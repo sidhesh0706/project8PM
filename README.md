@@ -107,8 +107,8 @@ Supported `action_type` values:
 |------|------:|-------|
 | `easy` | 5 | Password resets, lockouts, VPN restoration, approved access, licensing |
 | `medium` | 5 | Policy-aware access checks, travel false positives, contractor licensing, role-sync escalation |
-| `hard` | 6 | Offboarding failures, probable compromise, unmanaged devices, production data access |
-| `security` | 5 | MFA fatigue, leaked tokens, phishing, terminated access, unsafe data export |
+| `hard` | 7 | Offboarding failures, probable compromise, unmanaged devices, production data access, privileged-access traps |
+| `security` | 6 | MFA fatigue, leaked tokens, phishing, terminated access, unsafe data export |
 
 ## Operational Coverage
 
@@ -120,6 +120,12 @@ The scenarios cover:
 - offboarding drift and entitlement cleanup
 - compromise indicators such as phishing, MFA fatigue, and suspicious sign-ins
 - regulated data-handling violations
+
+## Why This Benchmark Is Hard
+
+- Several cases are intentionally high-pressure and tempting, where the unsafe action is the fastest-looking action.
+- Some tickets require one or two evidence-gathering steps before the correct resolution becomes obvious.
+- The benchmark rewards restraint: agents lose points for granting risky access, missing policy checks, or escalating when the issue is routine.
 
 ## Reward Logic
 

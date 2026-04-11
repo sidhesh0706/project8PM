@@ -190,7 +190,14 @@ def _heuristic_action(ticket) -> Action:
         target = "policy_blocked_request"
         note = "The request is blocked by policy and cannot be safely granted."
         message = "I cannot approve this because it violates the current security or access policy."
-    elif "terminated" in facts or "contract ended" in facts or "still include" in facts or "mapped to the leaked token" in facts or "vendor_vpn_access" in facts:
+    elif (
+        "terminated" in facts
+        or "contract ended" in facts
+        or "still include" in facts
+        or "mapped to the leaked token" in facts
+        or "vendor_vpn_access" in facts
+        or ("service account" in facts and "still active" in facts)
+    ):
         action_type = "revoke_access"
         target = "stale_access"
         note = "The account should not retain access after contract end or termination."
@@ -216,7 +223,7 @@ def _heuristic_action(ticket) -> Action:
             )
         alternative_investigations = [
             candidate
-            for candidate in ("lookup_user", "lookup_device", "check_access_policy", "review_login_risk")
+            for candidate in ("lookup_user", "lookup_device", "check_access_policy", "review_login_risk", "search_kb")
             if candidate in ticket.available_actions and candidate not in ticket.action_history
         ]
         if alternative_investigations:

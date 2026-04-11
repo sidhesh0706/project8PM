@@ -81,13 +81,13 @@ tasks:
   - name: hard
     description: High-stakes operational scenarios covering offboarding drift, probable compromise, unmanaged devices, and production access.
     difficulty: hard
-    num_cases: 6
+    num_cases: 7
     expected_score_range: [0.4, 0.8]
 
   - name: security
     description: Security-heavy cases involving MFA fatigue, leaked credentials, phishing, terminated access, and unsafe data handling.
     difficulty: hard
-    num_cases: 5
+    num_cases: 6
     expected_score_range: [0.5, 0.9]
 
 reward:

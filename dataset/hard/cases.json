@@ -197,5 +197,40 @@
       "disallowed_actions": ["escalate_security"],
       "reason": "The fix is to unlock the account and tell the user to update the stale mobile profile, not escalate a compromise."
     }
+  },
+  {
+    "id": "h7",
+    "title": "Request for GitHub organization admin during an active incident",
+    "requester": "On-call Bridge Bot",
+    "department": "Platform Engineering",
+    "priority": "high",
+    "category": "privileged_access",
+    "user_message": "An engineer asked for GitHub org admin because they want to quickly edit team memberships during an incident bridge.",
+    "visible_context": [
+      "The request cites urgency but includes no approval artifact.",
+      "GitHub org admin is considered a privileged platform role."
+    ],
+    "available_actions": ["lookup_user", "search_kb", "check_access_policy", "grant_app_access", "deny_request", "escalate_it_ops"],
+    "facts_by_action": {
+      "lookup_user": [
+        "The engineer is active and already has repository write access, but not organization admin."
+      ],
+      "search_kb": [
+        "KB-912: incident bridges do not justify GitHub org admin; break-glass elevation requires SRE manager approval and Identity Operations."
+      ],
+      "check_access_policy": [
+        "Platform access policy: GitHub org admin requires manager approval plus a break-glass ticket, neither of which is attached."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "deny_request",
+      "target": "github_org_admin",
+      "customer_terms": ["approval", "break-glass", "cannot grant"],
+      "required_facts": ["Platform access policy: GitHub org admin requires manager approval plus a break-glass ticket, neither of which is attached."],
+      "good_actions": ["check_access_policy"],
+      "optional_actions": ["lookup_user", "search_kb"],
+      "disallowed_actions": ["grant_app_access", "close_as_no_issue"],
+      "reason": "The request is high-risk and out of policy without a formal break-glass approval."
+    }
   }
 ]

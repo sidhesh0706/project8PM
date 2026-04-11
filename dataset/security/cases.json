@@ -161,5 +161,40 @@
       "disallowed_actions": ["grant_app_access"],
       "reason": "This is an outright policy violation and must be denied."
     }
+  },
+  {
+    "id": "s6",
+    "title": "Production service token leaked in a CI troubleshooting thread",
+    "requester": "Secret Scanner",
+    "department": "Security",
+    "priority": "critical",
+    "category": "credential_exposure",
+    "user_message": "A production service token was pasted into an internal CI troubleshooting thread that is visible to a broad engineering channel.",
+    "visible_context": [
+      "The scanner marked the token as valid and currently active.",
+      "The thread is searchable by many engineers outside the owning team."
+    ],
+    "available_actions": ["lookup_user", "search_kb", "review_login_risk", "revoke_access", "escalate_security", "close_as_no_issue"],
+    "facts_by_action": {
+      "lookup_user": [
+        "The leaked token belongs to the production deployment service account and is still active."
+      ],
+      "search_kb": [
+        "KB-1440: any exposed active production token must be revoked immediately before longer incident analysis begins."
+      ],
+      "review_login_risk": [
+        "Audit logs show the token was used outside normal deployment windows after the thread was posted."
+      ]
+    },
+    "expected_resolution": {
+      "action_type": "revoke_access",
+      "target": "production_service_token",
+      "customer_terms": ["token", "revoked", "rotate"],
+      "required_facts": ["The leaked token belongs to the production deployment service account and is still active."],
+      "good_actions": ["lookup_user"],
+      "optional_actions": ["search_kb", "review_login_risk"],
+      "disallowed_actions": ["close_as_no_issue"],
+      "reason": "An active production token exposure should be revoked immediately to contain the risk."
+    }
   }
 ]
