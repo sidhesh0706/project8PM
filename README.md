@@ -1,6 +1,6 @@
 ---
 title: IT Helpdesk Ops Env
-emoji: "🛠️"
+emoji: "support"
 colorFrom: blue
 colorTo: green
 sdk: docker
@@ -9,20 +9,20 @@ pinned: false
 
 # IT Helpdesk Operations Environment
 
-An OpenEnv benchmark for real-world enterprise support and security workflows. Instead of solving a toy task, the agent works through IT helpdesk and security operations tickets: it investigates the situation, gathers facts, checks policy, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
+An OpenEnv benchmark for enterprise support and security workflows. The agent works through IT helpdesk and security operations tickets, gathers the right evidence, checks policy, and chooses a safe final action such as unlocking an account, reissuing a VPN profile, denying a risky request, revoking stale access, or escalating to Security.
 
-This is meant to evaluate operational AI agents, not just classifiers. The environment rewards evidence gathering, policy awareness, safe escalation, and correct final resolution.
+The environment is designed to evaluate operational AI agents rather than simple labelers. It rewards evidence gathering, policy awareness, safe escalation, and correct final resolution.
 
 ## Why This Benchmark Matters
 
-Most agent benchmarks stop at extraction or classification. Real IT and security teams need something harder:
+Most agent benchmarks stop at extraction or classification. Operational teams need something closer to real work:
 - understand a user ticket with incomplete context
 - decide whether more evidence is needed
 - distinguish routine support from real security risk
 - avoid unsafe actions
 - communicate the resolution clearly
 
-Those are exactly the behaviors this environment measures.
+Those are the behaviors this environment measures.
 
 ## Benchmark Design
 
@@ -31,7 +31,7 @@ Each episode contains one tier of tickets. The agent sees one active ticket at a
 - gather ticket-specific facts revealed by those actions
 - choose one final action such as `unlock_account`, `assign_license`, `deny_request`, `revoke_access`, `escalate_security`, or `close_as_no_issue`
 
-The episode advances to the next case only after the current one is resolved, denied, escalated, or times out.
+The episode advances only after the active case is resolved, denied, escalated, or times out.
 
 ## Observation Space
 
@@ -144,6 +144,12 @@ Environment variables:
 | `API_KEY` | Primary proxy credential |
 | `HF_TOKEN` | Local fallback accepted by the baseline |
 | `LOCAL_IMAGE_NAME` | Optional docker-image runner variable |
+
+Recent local baseline scores:
+- `easy`: `0.99`
+- `medium`: `0.93`
+- `hard`: `0.91`
+- `security`: `0.91`
 
 ## Local Setup
 
